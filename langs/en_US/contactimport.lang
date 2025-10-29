@@ -1,0 +1,306 @@
+# Dolibarr language file - Source file is UTF-8
+# Copyright (C) 2025 Kim Wittkowski
+#
+# Module ContactImport - English Language File
+
+CHARSET = UTF-8
+
+# Module description
+ModuleContactimportName = Contact Import
+ModuleContactimportDesc = Module for importing company and contact data from CSV files
+
+# Setup
+ContactImportSetup = Contact Import Configuration
+ContactImportSetupDescription = Configuration of the Contact Import module
+
+# Configuration
+CONTACTIMPORT_DEFAULT_CSV_SEPARATOR = Default CSV Separator
+CONTACTIMPORT_DEFAULT_CSV_SEPARATORTooltip = Default separator for CSV files (usually ; or ,)
+CONTACTIMPORT_DEFAULT_CSV_ENCLOSURE = Default CSV Enclosure
+CONTACTIMPORT_DEFAULT_CSV_ENCLOSURETooltip = Default enclosure for CSV fields (usually " or ')
+CONTACTIMPORT_MAX_FILE_SIZE = Maximum File Size
+CONTACTIMPORT_MAX_FILE_SIZETooltip = Maximum size for uploaded CSV files in bytes
+CONTACTIMPORT_AUTO_CREATE_COMPANIES = Auto Create Companies
+CONTACTIMPORT_AUTO_CREATE_COMPANIESTooltip = Automatically create new companies if they don't exist
+CONTACTIMPORT_AUTO_CREATE_CONTACTS = Auto Create Contacts
+CONTACTIMPORT_AUTO_CREATE_CONTACTSTooltip = Automatically create new contacts if they don't exist
+CONTACTIMPORT_DUPLICATE_CHECK = Duplicate Check
+CONTACTIMPORT_DUPLICATE_CHECKTooltip = Perform duplicate check before import
+CONTACTIMPORT_LOG_LEVEL = Log Level
+CONTACTIMPORT_LOG_LEVELTooltip = Detail level of import logging
+
+# Menu
+ContactImport = Contact Import
+CSVUpload = CSV Upload
+MappingInterface = Mapping Interface
+ImportHistory = Import History
+
+# Upload
+CSVFile = CSV File
+MaxFileSize = Maximum File Size
+Upload = Upload
+HasHeader = Has Header
+HasHeaderTooltip = The first line of the CSV file contains column names
+CSVSeparator = CSV Separator
+CSVEnclosure = CSV Enclosure
+RecentUploads = Recent Uploads
+NoRecentUploads = No recent uploads found
+
+# CSV Separators and Enclosures
+Semicolon = Semicolon
+Comma = Comma
+Pipe = Pipe
+Tab = Tab
+DoubleQuote = Double Quote
+SingleQuote = Single Quote
+
+# Mapping
+MappingInterface = Mapping Interface
+CSVPreview = CSV Preview
+Column = Column
+DolibarrField = Dolibarr Field
+CSVColumn = CSV Column
+ImportSettings = Import Settings
+ImportMode = Import Mode
+ImportWhat = What to import?
+CompaniesAndContacts = Companies and Contacts
+CompaniesOnly = Companies Only
+ContactsOnly = Contacts Only
+CompanyOnly = Company Only
+ContactOnly = Contact Only
+CompanyAndContact = Company and Contact
+CreateOptions = Creation Options
+CreateCompanies = Create Companies
+CreateContacts = Create Contacts
+LinkContactsToCompanies = Link Contacts to Companies
+RequiredFields = Required Fields
+CompanyNameAndContactLastname = Company name and contact lastname are required fields
+CompanyNameRequired = Company name is required field
+CompanyNameAlwaysRequiredForContacts = Company name is required (auto-generated from contact lastname if empty). Contact lastname is also required.
+Required = Required
+CompanyFieldMapping = Company Field Mapping
+ContactFieldMapping = Contact Field Mapping
+SaveMapping = Save Mapping
+
+# Status
+Draft = Draft
+Uploaded = Uploaded
+Mapped = Mapped
+Processing = Processing
+Completed = Completed
+Error = Error
+Unknown = Unknown
+
+# Actions
+Map = Map
+View = View
+
+# Errors
+ErrorFileTooLarge = File is too large. Maximum: %s
+ErrorInvalidFileExtension = Invalid file extension. Only CSV and TXT are allowed
+ErrorCannotUploadFile = Cannot upload file
+ErrorNoFileSelected = No file selected
+ErrorInvalidCSVFile = Invalid CSV file
+ErrorUploadDirNotWritable = Upload directory is not writable: %s
+ErrorRecordNotFound = Record not found
+ErrorFileNotFound = File not found
+ErrorSessionRequired = Session required
+ErrorReadingCSVFile = Error reading CSV file
+ErrorNoMappingDefined = No mapping defined
+ErrorCompanyNameRequired = Company name is required for company import
+ErrorContactLastnameRequired = Last name is required for contact import
+DuplicateSkipped = Duplicate skipped
+CompanyAlreadyExists = Company already exists (ID: %s)
+ContactAlreadyExists = Contact already exists (ID: %s)
+DuplicatesFound = Duplicates found
+SkippedLines = Skipped lines (duplicates)
+DeleteAllDuplicateLogs = Delete all duplicate logs
+DeleteDuplicateLogsOlderThan30Days = Delete logs older than 30 days
+DeleteDuplicateLogsOlderThan90Days = Delete logs older than 90 days
+ConfirmDeleteAllDuplicateLogs = Are you sure you want to delete all duplicate logs?
+ConfirmDeleteDuplicateLogsOlderThan = Are you sure you want to delete all duplicate logs older than %s days?
+DuplicateLogsDeleted = %s duplicate log entries successfully deleted
+
+# Success
+FileUploadedSuccessfully = File uploaded successfully
+MappingSavedSuccessfully = Mapping saved successfully
+
+# Size
+byte = Byte
+bytes = Bytes
+KB = KB
+MB = MB
+GB = GB
+
+# Common fields
+Size = Size
+Filename = Filename
+Date = Date
+Status = Status
+Action = Action
+TotalLines = Total Lines
+ProcessedLines = Processed Lines
+SuccessLines = Success Lines
+ErrorLines = Error Lines
+
+# Delete functionality
+DeleteSession = Delete Session
+ConfirmDeleteSession = Are you sure you want to delete the session "%s"?
+SessionDeleted = Session deleted successfully
+ErrorDeleteSession = Error deleting session
+ErrorFileDelete = Error deleting file: %s
+ErrorSessionNotFound = Session not found
+InvalidToken = Invalid token
+
+# Templates
+ImportTemplates = Import Templates
+ImportTemplatesDescription = Manage templates for automated CSV imports
+CreateTemplate = Create Template
+EditTemplate = Edit Template
+DeleteTemplate = Delete Template
+TemplateSaved = Template saved successfully
+TemplateDeleted = Template deleted successfully
+ConfirmDeleteTemplate = Are you sure you want to delete this template?
+FieldMapping = Field Mapping
+CompanyFields = Company Fields
+ContactFields = Contact Fields
+NoTemplatesFound = No templates found
+TemplateRef = Template Reference
+TemplateLabel = Template Name
+TemplateDescription = Description
+CSVSeparator = CSV Separator
+CSVEnclosure = CSV Enclosure
+HasHeader = Has Header
+IsDefault = Default Template
+MappingConfiguration = Mapping Configuration
+NoSampleCSVFileFound = No sample CSV file found: %s
+SelectField = Select Field
+IgnoreColumn = Ignore Column
+ErrorSavingTemplate = Error saving template
+ErrorDeletingTemplate = Error deleting template
+ErrorLoadingTemplate = Error loading template
+
+# FTP Configuration
+FTPConfiguration = FTP Configuration
+FTPConfigurationDescription = Configure FTP/SFTP connection for automatic file imports
+FTPEnabled = FTP Enabled
+FTPType = FTP Type
+FTPHost = FTP Host
+FTPPort = FTP Port
+FTPUser = FTP User
+FTPPassword = FTP Password
+FTPPath = FTP Path
+FTPPassive = Passive Mode
+FTPAutoImport = Auto Import
+FTPDeleteAfterImport = Delete Files After Import
+FTPFilePattern = File Pattern
+TestConnection = Test Connection
+FTPConnectionSuccessful = FTP connection successful
+SFTPConnectionSuccessful = SFTP connection successful
+FTPConnectionFailed = FTP connection failed
+SFTPConnectionFailed = SFTP connection failed
+
+# Pseudo Cron
+CONTACTIMPORT_PSEUDO_CRON = Enable Pseudo-Cron (for users without Cron access)
+CONTACTIMPORT_PSEUDO_CRONTooltip = If enabled, import will run automatically on normal page loads (WordPress style). Only use if no real cron job is available. Recommended for shared hosting without cron access.
+DownloadAndImport = Download and Import
+FilesDownloaded = %s file(s) downloaded
+FilesImported = %s file(s) imported
+NoFilesFound = No files found
+FTPConfigurationIncomplete = FTP configuration incomplete
+NoDefaultTemplateFound = No default template found
+FTPExtensionMissing = PHP FTP extension is not installed
+SSH2ExtensionMissing = PHP SSH2 extension is not installed
+ErrorDownloadingFiles = Error downloading files
+ErrorImportingFiles = Error importing files
+PasswordNotChanged = (Password not changed)
+FTPConfigurationSaved = FTP configuration saved
+UploadSampleCSV = Upload Sample CSV
+UploadSampleCSVDescription = Upload a sample CSV file to detect column structure and configure mapping
+SampleCSVFile = Sample CSV File
+UploadFile = Upload File
+FTPSyncInterval = Sync Interval (minutes)
+FTPSyncIntervalDescription = Interval in minutes for automatic FTP retrieval (e.g., 60 for hourly, 1440 for daily)
+
+# Additional translations
+CONTACTIMPORT_FTP_SYNC_INTERVAL = Sync Interval (minutes)
+CONTACTIMPORT_FTP_SYNC_INTERVALTooltip = Interval in minutes for automatic FTP retrieval. Example: 60 = hourly, 1440 = daily
+CurrentSampleFile = Current Sample File
+UploadDifferentFile = Upload Different File
+ImportSuccessful = Import successful
+ImportFailed = Import failed
+ImportWarning = Import warning
+NoFilesToImport = No files to import found
+FTPDownloadFailed = FTP download failed
+
+# Logs & Files Tab
+LogsAndFiles = Logs & Files
+LogsAndFilesDescription = Manage downloaded files, view import statistics and logs
+DownloadedFiles = Downloaded Files
+NoFilesFound = No files found
+DeleteAllFiles = Delete All Files
+ConfirmDeleteFile = Are you sure you want to delete this file?
+ConfirmDeleteAllFiles = Are you sure you want to delete ALL downloaded files?
+FileDeleted = File deleted successfully
+FilesDeleted = %s file(s) deleted successfully
+ErrorDeletingFile = Error deleting file
+ErrorDeletingFiles = Error deleting %s file(s)
+ImportStatistics = Import Statistics
+TotalImports = Total Imports
+CompletedImports = Completed Imports
+FailedImports = Failed Imports
+TotalLinesProcessed = Total Lines Processed
+SuccessfulLines = Successful Lines
+SuccessRate = Success Rate
+ImportHistory = Import History
+NoImportsFound = No imports found
+Showing50MostRecent = Showing 50 most recent entries
+BackToList = Back to List
+DateImport = Import Date
+Duration = Duration
+ErrorLog = Error Log
+SessionNotFound = Session not found
+Lines = Lines
+DeleteAllLogs = Delete All Logs
+DeleteLogsOlderThan = Delete Logs Older Than %s Days
+ConfirmDeleteAllLogs = Are you sure you want to delete ALL import logs?
+ConfirmDeleteLogsOlderThan = Are you sure you want to delete all logs older than %s days?
+LogsDeleted = %s log entries deleted successfully
+
+# Duplicate Management
+DuplicateManagement = Duplicate Management
+DuplicateManagementDescription = Find and manage duplicate companies and contacts in your database
+AnalyzeCompanyDuplicates = Analyze Company Duplicates
+AnalyzeContactDuplicates = Analyze Contact Duplicates
+CompanyDuplicates = Company Duplicates
+ContactDuplicates = Contact Duplicates
+IdenticalCompanies = Identical Companies (Delete)
+SimilarCompanies = Similar Companies (Merge)
+IdenticalContacts = Identical Contacts (Delete)
+SimilarContacts = Similar Contacts (Merge)
+NoIdenticalCompaniesFound = No identical companies found
+NoSimilarCompaniesFound = No similar companies found
+NoIdenticalContactsFound = No identical contacts found
+NoSimilarContactsFound = No similar contacts found
+Duplicates = Duplicates
+DeleteSelected = Delete Selected
+MergeSelected = Merge Selected
+CompaniesDeleted = %s company(ies) deleted successfully
+ContactsDeleted = %s contact(s) deleted successfully
+CompaniesMerged = %s company(ies) merged successfully
+ContactsMerged = %s contact(s) merged successfully
+ErrorDeletingCompanies = Error deleting %s company(ies)
+ErrorDeletingContacts = Error deleting %s contact(s)
+ErrorMergingCompanies = Error merging %s company(ies)
+ErrorMergingContacts = Error merging %s contact(s)
+RecentDuplicateActions = Recent Duplicate Actions
+SourceID = Source ID
+TargetID = Target ID
+NoRecentActions = No recent actions found
+
+Success = Success
+Errors = Errors
+About = About
+ContactImportAbout = About Contact Import
+ChangeLog = Change Log
+ModuleNumber = Module Number

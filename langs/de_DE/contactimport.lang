@@ -1,0 +1,306 @@
+# Dolibarr language file - Source file is UTF-8
+# Copyright (C) 2025 Kim Wittkowski
+#
+# Module ContactImport - German Language File
+
+CHARSET = UTF-8
+
+# Module description
+ModuleContactimportName = Kontakt Import
+ModuleContactimportDesc = Modul zum Import von Firmen- und Kontaktdaten aus CSV-Dateien
+
+# Setup
+ContactImportSetup = Kontakt Import Konfiguration
+ContactImportSetupDescription = Konfiguration des Kontakt Import Moduls
+
+# Configuration
+CONTACTIMPORT_DEFAULT_CSV_SEPARATOR = Standard CSV-Trennzeichen
+CONTACTIMPORT_DEFAULT_CSV_SEPARATORTooltip = Standardtrennzeichen für CSV-Dateien (normalerweise ; oder ,)
+CONTACTIMPORT_DEFAULT_CSV_ENCLOSURE = Standard CSV-Anführungszeichen
+CONTACTIMPORT_DEFAULT_CSV_ENCLOSURETooltip = Standard-Anführungszeichen für CSV-Felder (normalerweise " oder ')
+CONTACTIMPORT_MAX_FILE_SIZE = Maximale Dateigröße
+CONTACTIMPORT_MAX_FILE_SIZETooltip = Maximale Größe für hochgeladene CSV-Dateien in Bytes
+CONTACTIMPORT_AUTO_CREATE_COMPANIES = Firmen automatisch erstellen
+CONTACTIMPORT_AUTO_CREATE_COMPANIESTooltip = Neue Firmen automatisch erstellen, wenn sie nicht existieren
+CONTACTIMPORT_AUTO_CREATE_CONTACTS = Kontakte automatisch erstellen
+CONTACTIMPORT_AUTO_CREATE_CONTACTSTooltip = Neue Kontakte automatisch erstellen, wenn sie nicht existieren
+CONTACTIMPORT_DUPLICATE_CHECK = Duplikatsprüfung
+CONTACTIMPORT_DUPLICATE_CHECKTooltip = Prüfung auf Duplikate vor dem Import durchführen
+CONTACTIMPORT_LOG_LEVEL = Log-Level
+CONTACTIMPORT_LOG_LEVELTooltip = Detailgrad der Import-Protokollierung
+
+# Menu
+ContactImport = Kontakt Import
+CSVUpload = CSV Upload
+MappingInterface = Mapping Interface
+ImportHistory = Import Verlauf
+
+# Upload
+CSVFile = CSV-Datei
+MaxFileSize = Maximale Dateigröße
+Upload = Hochladen
+HasHeader = Hat Kopfzeile
+HasHeaderTooltip = Die erste Zeile der CSV-Datei enthält Spaltennamen
+CSVSeparator = CSV-Trennzeichen
+CSVEnclosure = CSV-Anführungszeichen
+RecentUploads = Letzte Uploads
+NoRecentUploads = Keine aktuellen Uploads gefunden
+
+# CSV Separators and Enclosures
+Semicolon = Semikolon
+Comma = Komma
+Pipe = Pipe
+Tab = Tabulator
+DoubleQuote = Doppelte Anführungszeichen
+SingleQuote = Einfache Anführungszeichen
+
+# Mapping
+MappingInterface = Mapping Interface
+CSVPreview = CSV-Vorschau
+Column = Spalte
+DolibarrField = Dolibarr-Feld
+CSVColumn = CSV-Spalte
+ImportSettings = Import-Einstellungen
+ImportMode = Import-Modus
+ImportWhat = Was soll importiert werden?
+CompaniesAndContacts = Firmen und Kontakte
+CompaniesOnly = Nur Firmen
+ContactsOnly = Nur Kontakte
+CompanyOnly = Nur Firmen
+ContactOnly = Nur Kontakte
+CompanyAndContact = Firmen und Kontakte
+CreateOptions = Erstellungs-Optionen
+CreateCompanies = Firmen erstellen
+CreateContacts = Kontakte erstellen
+LinkContactsToCompanies = Kontakte mit Firmen verknüpfen
+RequiredFields = Pflichtfelder
+CompanyNameAndContactLastname = Firmenname und Kontakt-Nachname sind Pflichtfelder
+CompanyNameRequired = Firmenname ist Pflichtfeld
+CompanyNameAlwaysRequiredForContacts = Firmenname ist Pflichtfeld (wird aus Kontakt-Nachname generiert wenn leer). Kontakt-Nachname ist ebenfalls Pflichtfeld.
+Required = Pflichtfeld
+CompanyFieldMapping = Firmen-Feld-Zuordnung
+ContactFieldMapping = Kontakt-Feld-Zuordnung
+SaveMapping = Zuordnung speichern
+
+# Status
+Draft = Entwurf
+Uploaded = Hochgeladen
+Mapped = Zugeordnet
+Processing = Verarbeitung
+Completed = Abgeschlossen
+Error = Fehler
+Unknown = Unbekannt
+
+# Actions
+Map = Zuordnen
+View = Ansehen
+
+# Errors
+ErrorFileTooLarge = Datei ist zu groß. Maximum: %s
+ErrorInvalidFileExtension = Ungültige Dateierweiterung. Nur CSV und TXT sind erlaubt
+ErrorCannotUploadFile = Datei konnte nicht hochgeladen werden
+ErrorNoFileSelected = Keine Datei ausgewählt
+ErrorInvalidCSVFile = Ungültige CSV-Datei
+ErrorUploadDirNotWritable = Upload-Verzeichnis ist nicht beschreibbar: %s
+ErrorRecordNotFound = Datensatz nicht gefunden
+ErrorFileNotFound = Datei nicht gefunden
+ErrorSessionRequired = Session erforderlich
+ErrorReadingCSVFile = Fehler beim Lesen der CSV-Datei
+ErrorNoMappingDefined = Keine Zuordnung definiert
+ErrorCompanyNameRequired = Firmenname ist erforderlich für Firmen-Import
+ErrorContactLastnameRequired = Nachname ist erforderlich für Kontakt-Import
+DuplicateSkipped = Duplikat übersprungen
+CompanyAlreadyExists = Firma existiert bereits (ID: %s)
+ContactAlreadyExists = Kontakt existiert bereits (ID: %s)
+DuplicatesFound = Duplikate gefunden
+SkippedLines = Übersprungene Zeilen (Duplikate)
+DeleteAllDuplicateLogs = Alle Duplikat-Protokolle löschen
+DeleteDuplicateLogsOlderThan30Days = Protokolle älter als 30 Tage löschen
+DeleteDuplicateLogsOlderThan90Days = Protokolle älter als 90 Tage löschen
+ConfirmDeleteAllDuplicateLogs = Sind Sie sicher, dass Sie alle Duplikat-Protokolle löschen möchten?
+ConfirmDeleteDuplicateLogsOlderThan = Sind Sie sicher, dass Sie alle Duplikat-Protokolle älter als %s Tage löschen möchten?
+DuplicateLogsDeleted = %s Duplikat-Protokolleinträge erfolgreich gelöscht
+
+# Success
+FileUploadedSuccessfully = Datei erfolgreich hochgeladen
+MappingSavedSuccessfully = Zuordnung erfolgreich gespeichert
+
+# Size
+byte = Byte
+bytes = Bytes
+KB = KB
+MB = MB
+GB = GB
+
+# Common fields
+Size = Größe
+Filename = Dateiname
+Date = Datum
+Status = Status
+Action = Aktion
+TotalLines = Gesamtzeilen
+ProcessedLines = Verarbeitete Zeilen
+SuccessLines = Erfolgreiche Zeilen
+ErrorLines = Fehlerhafte Zeilen
+
+# Delete functionality
+DeleteSession = Session löschen
+ConfirmDeleteSession = Sind Sie sicher, dass Sie die Session "%s" löschen möchten?
+SessionDeleted = Session erfolgreich gelöscht
+ErrorDeleteSession = Fehler beim Löschen der Session
+ErrorFileDelete = Fehler beim Löschen der Datei: %s
+ErrorSessionNotFound = Session nicht gefunden
+InvalidToken = Ungültiger Token
+
+# Templates
+ImportTemplates = Import-Vorlagen
+ImportTemplatesDescription = Vorlagen für automatische CSV-Importe verwalten
+CreateTemplate = Vorlage erstellen
+EditTemplate = Vorlage bearbeiten
+DeleteTemplate = Vorlage löschen
+TemplateSaved = Vorlage erfolgreich gespeichert
+TemplateDeleted = Vorlage erfolgreich gelöscht
+ConfirmDeleteTemplate = Sind Sie sicher, dass Sie diese Vorlage löschen möchten?
+FieldMapping = Feld-Zuordnung
+CompanyFields = Firmen-Felder
+ContactFields = Kontakt-Felder
+NoTemplatesFound = Keine Vorlagen gefunden
+TemplateRef = Vorlagen-Referenz
+TemplateLabel = Vorlagen-Name
+TemplateDescription = Beschreibung
+CSVSeparator = CSV-Trennzeichen
+CSVEnclosure = CSV-Begrenzungszeichen
+HasHeader = Hat Kopfzeile
+IsDefault = Standard-Vorlage
+MappingConfiguration = Zuordnungskonfiguration
+NoSampleCSVFileFound = Keine Beispiel-CSV-Datei gefunden: %s
+SelectField = Feld auswählen
+IgnoreColumn = Spalte ignorieren
+ErrorSavingTemplate = Fehler beim Speichern der Vorlage
+ErrorDeletingTemplate = Fehler beim Löschen der Vorlage
+ErrorLoadingTemplate = Fehler beim Laden der Vorlage
+
+# FTP Configuration
+FTPConfiguration = FTP-Konfiguration
+FTPConfigurationDescription = Konfigurieren Sie FTP/SFTP-Verbindung für automatische Datei-Importe
+FTPEnabled = FTP aktiviert
+FTPType = FTP-Typ
+FTPHost = FTP-Host
+FTPPort = FTP-Port
+FTPUser = FTP-Benutzer
+FTPPassword = FTP-Passwort
+FTPPath = FTP-Pfad
+FTPPassive = Passiver Modus
+FTPAutoImport = Automatischer Import
+FTPDeleteAfterImport = Dateien nach Import löschen
+FTPFilePattern = Dateimuster
+TestConnection = Verbindung testen
+FTPConnectionSuccessful = FTP-Verbindung erfolgreich
+SFTPConnectionSuccessful = SFTP-Verbindung erfolgreich
+FTPConnectionFailed = FTP-Verbindung fehlgeschlagen
+SFTPConnectionFailed = SFTP-Verbindung fehlgeschlagen
+
+# Pseudo Cron
+CONTACTIMPORT_PSEUDO_CRON = Pseudo-Cron aktivieren (für User ohne Cron-Zugriff)
+CONTACTIMPORT_PSEUDO_CRONTooltip = Wenn aktiviert, wird der Import automatisch bei normalen Seitenaufrufen ausgeführt (WordPress-Stil). Nur verwenden, wenn kein echter Cron-Job verfügbar ist. Empfohlen für Shared-Hosting ohne Cron-Zugriff.
+DownloadAndImport = Herunterladen und Importieren
+FilesDownloaded = %s Datei(en) heruntergeladen
+FilesImported = %s Datei(en) importiert
+NoFilesFound = Keine Dateien gefunden
+FTPConfigurationIncomplete = FTP-Konfiguration unvollständig
+NoDefaultTemplateFound = Keine Standard-Vorlage gefunden
+FTPExtensionMissing = PHP FTP-Erweiterung ist nicht installiert
+SSH2ExtensionMissing = PHP SSH2-Erweiterung ist nicht installiert
+ErrorDownloadingFiles = Fehler beim Herunterladen der Dateien
+ErrorImportingFiles = Fehler beim Importieren der Dateien
+PasswordNotChanged = (Passwort nicht geändert)
+FTPConfigurationSaved = FTP-Konfiguration gespeichert
+UploadSampleCSV = Muster-CSV hochladen
+UploadSampleCSVDescription = Laden Sie eine Beispiel-CSV-Datei hoch, um die Spaltenstruktur zu erkennen und das Mapping zu konfigurieren
+SampleCSVFile = Muster-CSV-Datei
+UploadFile = Datei hochladen
+FTPSyncInterval = Synchronisations-Intervall (Minuten)
+FTPSyncIntervalDescription = Intervall in Minuten für automatischen FTP-Abruf (z.B. 60 für stündlich, 1440 für täglich)
+
+# Additional translations
+CONTACTIMPORT_FTP_SYNC_INTERVAL = Synchronisations-Intervall (Minuten)
+CONTACTIMPORT_FTP_SYNC_INTERVALTooltip = Intervall in Minuten für automatischen FTP-Abruf. Beispiel: 60 = stündlich, 1440 = täglich
+CurrentSampleFile = Aktuelle Muster-Datei
+UploadDifferentFile = Andere Datei hochladen
+ImportSuccessful = Import erfolgreich
+ImportFailed = Import fehlgeschlagen
+ImportWarning = Import-Warnung
+NoFilesToImport = Keine Dateien zum Importieren gefunden
+FTPDownloadFailed = FTP-Download fehlgeschlagen
+
+# Logs & Files Tab
+LogsAndFiles = Protokolle & Dateien
+LogsAndFilesDescription = Verwalten Sie heruntergeladene Dateien, sehen Sie Import-Statistiken und Protokolle ein
+DownloadedFiles = Heruntergeladene Dateien
+NoFilesFound = Keine Dateien gefunden
+DeleteAllFiles = Alle Dateien löschen
+ConfirmDeleteFile = Sind Sie sicher, dass Sie diese Datei löschen möchten?
+ConfirmDeleteAllFiles = Sind Sie sicher, dass Sie ALLE heruntergeladenen Dateien löschen möchten?
+FileDeleted = Datei erfolgreich gelöscht
+FilesDeleted = %s Datei(en) erfolgreich gelöscht
+ErrorDeletingFile = Fehler beim Löschen der Datei
+ErrorDeletingFiles = Fehler beim Löschen von %s Datei(en)
+ImportStatistics = Import-Statistiken
+TotalImports = Gesamte Imports
+CompletedImports = Abgeschlossene Imports
+FailedImports = Fehlgeschlagene Imports
+TotalLinesProcessed = Verarbeitete Zeilen gesamt
+SuccessfulLines = Erfolgreiche Zeilen
+SuccessRate = Erfolgsrate
+ImportHistory = Import-Verlauf
+NoImportsFound = Keine Imports gefunden
+Showing50MostRecent = Zeige die 50 neuesten Einträge
+BackToList = Zurück zur Liste
+DateImport = Import-Datum
+Duration = Dauer
+ErrorLog = Fehlerprotokoll
+SessionNotFound = Session nicht gefunden
+Lines = Zeilen
+DeleteAllLogs = Alle Protokolle löschen
+DeleteLogsOlderThan = Protokolle älter als %s Tage löschen
+ConfirmDeleteAllLogs = Sind Sie sicher, dass Sie ALLE Import-Protokolle löschen möchten?
+ConfirmDeleteLogsOlderThan = Sind Sie sicher, dass Sie alle Protokolle älter als %s Tage löschen möchten?
+LogsDeleted = %s Protokolleinträge erfolgreich gelöscht
+
+# Duplicate Management
+DuplicateManagement = Duplikate Verwalten
+DuplicateManagementDescription = Finden und verwalten Sie doppelte Firmen und Kontakte in Ihrer Datenbank
+AnalyzeCompanyDuplicates = Firmen-Duplikate analysieren
+AnalyzeContactDuplicates = Kontakt-Duplikate analysieren
+CompanyDuplicates = Firmen-Duplikate
+ContactDuplicates = Kontakt-Duplikate
+IdenticalCompanies = Identische Firmen (Löschen)
+SimilarCompanies = Ähnliche Firmen (Zusammenführen)
+IdenticalContacts = Identische Kontakte (Löschen)
+SimilarContacts = Ähnliche Kontakte (Zusammenführen)
+NoIdenticalCompaniesFound = Keine identischen Firmen gefunden
+NoSimilarCompaniesFound = Keine ähnlichen Firmen gefunden
+NoIdenticalContactsFound = Keine identischen Kontakte gefunden
+NoSimilarContactsFound = Keine ähnlichen Kontakte gefunden
+Duplicates = Duplikate
+DeleteSelected = Ausgewählte löschen
+MergeSelected = Ausgewählte zusammenführen
+CompaniesDeleted = %s Firma(en) erfolgreich gelöscht
+ContactsDeleted = %s Kontakt(e) erfolgreich gelöscht
+CompaniesMerged = %s Firma(en) erfolgreich zusammengeführt
+ContactsMerged = %s Kontakt(e) erfolgreich zusammengeführt
+ErrorDeletingCompanies = Fehler beim Löschen von %s Firma(en)
+ErrorDeletingContacts = Fehler beim Löschen von %s Kontakt(en)
+ErrorMergingCompanies = Fehler beim Zusammenführen von %s Firma(en)
+ErrorMergingContacts = Fehler beim Zusammenführen von %s Kontakt(en)
+RecentDuplicateActions = Letzte Duplikate-Aktionen
+SourceID = Quell-ID
+TargetID = Ziel-ID
+NoRecentActions = Keine aktuellen Aktionen gefunden
+
+Success = Erfolg
+Errors = Fehler
+About = Über
+ContactImportAbout = Über Kontakt Import
+ChangeLog = Änderungsprotokoll
+ModuleNumber = Modul-Nummer
