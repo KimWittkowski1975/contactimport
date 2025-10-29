@@ -66,7 +66,7 @@ class modContactimport extends DolibarrModules
 		$this->editor_url = 'https://';
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.0.0';
+		$this->version = '1.0.1';
 
 		// Key used in llx_const table to save module status enabled/disabled
 		$this->const_name = 'MAIN_MODULE_' . strtoupper($this->name);
