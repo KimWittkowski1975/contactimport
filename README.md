@@ -164,29 +164,5 @@ Im Admin-Bereich unter **Duplikate Verwalten** können Sie:
 - Mehrsprachiger Support (DE/EN)
 - Detaillierte Import-Protokollierung
 
-### Geplante Features
-- FTP-Integration für automatische Downloads (in Entwicklung)
-- Import-Templates für wiederkehrende Mappings (verfügbar)
-- Export von Import-Ergebnissen
-- Zeitgesteuerte Imports per Cron
 
-## Support
 
-Bei Fragen oder Problemen wenden Sie sich an:
-- **Entwickler**: Kim Wittkowski
-- **E-Mail**: kim@nexor.de
-- **Website**: https://www.nexor.de
-
-## Lizenz
-
-Dieses Modul steht unter der GNU General Public License v3.0.
-
-## Beitrag
-
-Beiträge zum Projekt sind willkommen! Bitte erstellen Sie Issues oder Pull Requests auf unserem Repository.
-
----
-
-**Modulnummer**: 918399  
-**Kategorie**: Interface  
-**Kompatibilität**: Dolibarr 21.0+
