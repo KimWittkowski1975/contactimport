@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2025 Kim Wittkowski <kim.wittkowski@gmx.de>
+/* Copyright (C) 2025 Kim Wittkowski <kim@wittkowski-it.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -135,48 +135,75 @@ class ContactImportFTP
 
 		} else {
 			// FTP download
+			dol_syslog("ContactImportFTP: Connecting to FTP server ".$ftp_host.":".$ftp_port, LOG_DEBUG);
 			$connection = @ftp_connect($ftp_host, $ftp_port, 30);
 			if (!$connection) {
-				$this->error = $langs->trans("ConnectionFailed");
+				$this->error = $langs->trans("ConnectionFailed")." - Host: ".$ftp_host.":".$ftp_port;
+				dol_syslog("ContactImportFTP: Connection failed - ".$this->error, LOG_ERR);
 				return -1;
 			}
 
+			dol_syslog("ContactImportFTP: Logging in as ".$ftp_user, LOG_DEBUG);
 			if (!@ftp_login($connection, $ftp_user, $ftp_password)) {
-				$this->error = $langs->trans("AuthenticationFailed");
+				$this->error = $langs->trans("AuthenticationFailed")." - User: ".$ftp_user;
+				dol_syslog("ContactImportFTP: Login failed - ".$this->error, LOG_ERR);
 				@ftp_close($connection);
 				return -1;
 			}
 
 			if (getDolGlobalString('CONTACTIMPORT_FTP_PASSIVE')) {
 				ftp_pasv($connection, true);
+				dol_syslog("ContactImportFTP: Passive mode enabled", LOG_DEBUG);
 			}
 
 			// Change to directory
-			@ftp_chdir($connection, $ftp_path);
+			dol_syslog("ContactImportFTP: Changing to directory ".$ftp_path, LOG_DEBUG);
+			if (!@ftp_chdir($connection, $ftp_path)) {
+				$this->error = "Cannot change to directory: ".$ftp_path;
+				dol_syslog("ContactImportFTP: ".$this->error, LOG_ERR);
+				@ftp_close($connection);
+				return -1;
+			}
 
 			// List files
+			dol_syslog("ContactImportFTP: Listing files with pattern ".$file_pattern, LOG_DEBUG);
 			$files = @ftp_nlist($connection, ".");
 			if ($files === false) {
+				dol_syslog("ContactImportFTP: ftp_nlist returned false, trying ftp_rawlist", LOG_WARNING);
 				$files = array();
+			} else {
+				dol_syslog("ContactImportFTP: Found ".count($files)." files: ".implode(', ', $files), LOG_DEBUG);
 			}
 
 			// Download files
 			foreach ($files as $file) {
+				dol_syslog("ContactImportFTP: Checking file ".$file." against pattern ".$file_pattern, LOG_DEBUG);
 				if ($this->matchPattern($file, $file_pattern)) {
 					$local_file = $upload_dir.'/'.$file;
 					
+					dol_syslog("ContactImportFTP: Downloading ".$file." to ".$local_file, LOG_DEBUG);
 					if (@ftp_get($connection, $local_file, $file, FTP_BINARY)) {
 						$downloaded_count++;
+						dol_syslog("ContactImportFTP: Successfully downloaded ".$file, LOG_INFO);
 
 						// Delete from server if configured
 						if ($delete_after) {
-							@ftp_delete($connection, $file);
+							if (@ftp_delete($connection, $file)) {
+								dol_syslog("ContactImportFTP: Deleted ".$file." from server", LOG_INFO);
+							} else {
+								dol_syslog("ContactImportFTP: Failed to delete ".$file." from server", LOG_WARNING);
+							}
 						}
+					} else {
+						dol_syslog("ContactImportFTP: Failed to download ".$file, LOG_ERR);
 					}
+				} else {
+					dol_syslog("ContactImportFTP: File ".$file." does not match pattern", LOG_DEBUG);
 				}
 			}
 
 			@ftp_close($connection);
+			dol_syslog("ContactImportFTP: FTP session closed. Downloaded ".$downloaded_count." files", LOG_INFO);
 		}
 
 		return $downloaded_count;

@@ -5,7 +5,7 @@
  * This file is called on every page load and checks if it's time to run the import.
  * Include this at the end of custom/contactimport/core/modules/modContactImport.class.php
  * 
- * Copyright (C) 2025 Kim Wittkowski <kim.wittkowski@gmx.de>
+ * Copyright (C) 2025 Kim Wittkowski <kim@wittkowski-it.de>
  */
 
 // Only run in web context, not CLI

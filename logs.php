@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2025 Kim Wittkowski <kim@nexor.de>
+/* Copyright (C) 2025 Kim Wittkowski <kim@wittkowski-it.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

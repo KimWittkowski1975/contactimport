@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2025 Kim Wittkowski <kim@nexor.de>
+/* Copyright (C) 2025 Kim Wittkowski <kim@wittkowski-it.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -301,15 +301,19 @@ class ContactImportProcessor
 			return $result;
 		}
 
+		// Ensure CSV enclosure is exactly one character (default to double quote)
+		$csv_enclosure = !empty($session->csv_enclosure) && strlen($session->csv_enclosure) === 1 ? $session->csv_enclosure : '"';
+		$csv_separator = !empty($session->csv_separator) && strlen($session->csv_separator) === 1 ? $session->csv_separator : ';';
+
 		// Skip header if present
 		if ($session->has_header) {
-			fgetcsv($handle, 0, $session->csv_separator, $session->csv_enclosure);
+			fgetcsv($handle, 0, $csv_separator, $csv_enclosure);
 		}
 
 		$this->db->begin();
 
 		$line_count = 0;
-		while (($csv_line = fgetcsv($handle, 0, $session->csv_separator, $session->csv_enclosure)) !== false) {
+		while (($csv_line = fgetcsv($handle, 0, $csv_separator, $csv_enclosure)) !== false) {
 			// Convert encoding to UTF-8 if needed
 			if (!empty($csv_line)) {
 				foreach ($csv_line as $key => $value) {
@@ -678,6 +682,11 @@ class ContactImportProcessor
 	{
 		global $conf;
 
+		// Check if duplicate check is enabled
+		if (!getDolGlobalString('CONTACTIMPORT_DUPLICATE_CHECK')) {
+			return 0; // Duplicate check disabled, allow all imports
+		}
+
 		// Check by exact name match
 		if (!empty($company->name)) {
 			$sql = "SELECT s.rowid FROM ".MAIN_DB_PREFIX."societe as s";
@@ -739,6 +748,11 @@ class ContactImportProcessor
 	private function checkContactDuplicate($contact)
 	{
 		global $conf;
+
+		// Check if duplicate check is enabled
+		if (!getDolGlobalString('CONTACTIMPORT_DUPLICATE_CHECK')) {
+			return 0; // Duplicate check disabled, allow all imports
+		}
 
 		// Check by email if provided (most reliable)
 		if (!empty($contact->email)) {

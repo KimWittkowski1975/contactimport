@@ -266,6 +266,10 @@ DeleteLogsOlderThan = Delete Logs Older Than %s Days
 ConfirmDeleteAllLogs = Are you sure you want to delete ALL import logs?
 ConfirmDeleteLogsOlderThan = Are you sure you want to delete all logs older than %s days?
 LogsDeleted = %s log entries deleted successfully
+ResetAllStatistics = Reset All Statistics
+ConfirmResetAllStatistics = Are you sure you want to reset ALL statistics?
+ThisWillDeleteAllSessionsAndLogs = This will permanently delete ALL import sessions and logs!
+StatisticsReset = Statistics successfully reset
 
 # Duplicate Management
 DuplicateManagement = Duplicate Management

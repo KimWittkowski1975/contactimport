@@ -266,6 +266,10 @@ DeleteLogsOlderThan = Protokolle älter als %s Tage löschen
 ConfirmDeleteAllLogs = Sind Sie sicher, dass Sie ALLE Import-Protokolle löschen möchten?
 ConfirmDeleteLogsOlderThan = Sind Sie sicher, dass Sie alle Protokolle älter als %s Tage löschen möchten?
 LogsDeleted = %s Protokolleinträge erfolgreich gelöscht
+ResetAllStatistics = Alle Statistiken zurücksetzen
+ConfirmResetAllStatistics = Sind Sie sicher, dass Sie ALLE Statistiken zurücksetzen möchten?
+ThisWillDeleteAllSessionsAndLogs = Dies wird ALLE Import-Sessions und Protokolle unwiderruflich löschen!
+StatisticsReset = Statistiken erfolgreich zurückgesetzt
 
 # Duplicate Management
 DuplicateManagement = Duplikate Verwalten
@@ -303,4 +307,12 @@ Errors = Fehler
 About = Über
 ContactImportAbout = Über Kontakt Import
 ChangeLog = Änderungsprotokoll
+
+# Duplicate Check Toggle
+DuplicateCheckSettings = Duplikatsprüfungs-Einstellungen
+EnableDuplicateCheck = Duplikatsprüfung aktivieren
+DuplicateCheckDescription = Wenn aktiviert, werden beim Import Duplikate erkannt und übersprungen. Wenn deaktiviert, werden alle Datensätze importiert, auch wenn sie bereits existieren.
+DuplicateCheckEnabled = Duplikatsprüfung wurde aktiviert
+DuplicateCheckDisabled = Duplikatsprüfung wurde deaktiviert
+ErrorSavingSetting = Fehler beim Speichern der Einstellung
 ModuleNumber = Modul-Nummer

@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2025 Kim Wittkowski <kim.wittkowski@gmx.de>
+/* Copyright (C) 2025 Kim Wittkowski <kim@wittkowski-it.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,6 +73,27 @@ $type = GETPOST('type', 'alpha'); // 'company' or 'contact'
 /*
  * Actions
  */
+
+// Toggle duplicate check setting
+if ($action == 'toggle_duplicate_check') {
+	$current_value = getDolGlobalString('CONTACTIMPORT_DUPLICATE_CHECK', '1');
+	$new_value = $current_value == '1' ? '0' : '1';
+	
+	$res = dolibarr_set_const($db, 'CONTACTIMPORT_DUPLICATE_CHECK', $new_value, 'chaine', 0, '', $conf->entity);
+	
+	if ($res > 0) {
+		if ($new_value == '1') {
+			setEventMessages($langs->trans("DuplicateCheckEnabled"), null, 'mesgs');
+		} else {
+			setEventMessages($langs->trans("DuplicateCheckDisabled"), null, 'warnings');
+		}
+	} else {
+		setEventMessages($langs->trans("ErrorSavingSetting"), null, 'errors');
+	}
+	
+	header('Location: '.$_SERVER['PHP_SELF']);
+	exit;
+}
 
 $duplicateManager = new ContactImportDuplicateManager($db);
 
@@ -196,6 +217,41 @@ print load_fiche_titre($langs->trans($page_name), $linkback, 'title_setup');
 // Configuration header
 $head = contactimportAdminPrepareHead();
 print dol_get_fiche_head($head, 'duplicates', $langs->trans("ContactImportSetup"), -1, 'contactimport@contactimport');
+
+// Duplicate Check Toggle
+$duplicate_check_enabled = getDolGlobalString('CONTACTIMPORT_DUPLICATE_CHECK', '1');
+
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th>'.$langs->trans("Parameter").'</th>';
+print '<th class="center">'.$langs->trans("Value").'</th>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td>';
+print $langs->trans("EnableDuplicateCheck");
+print '<br><span class="opacitymedium">'.$langs->trans("DuplicateCheckDescription").'</span>';
+print '</td>';
+print '<td class="center nowraponall">';
+
+// Toggle button styled like Dolibarr modules page
+if ($duplicate_check_enabled == '1') {
+	print '<a class="reposition" href="'.$_SERVER["PHP_SELF"].'?action=toggle_duplicate_check&token='.newToken().'">';
+	print img_picto($langs->trans("Enabled"), 'switch_on');
+	print '</a>';
+} else {
+	print '<a class="reposition" href="'.$_SERVER["PHP_SELF"].'?action=toggle_duplicate_check&token='.newToken().'">';
+	print img_picto($langs->trans("Disabled"), 'switch_off');
+	print '</a>';
+}
+
+print '</td>';
+print '</tr>';
+print '</table>';
+print '</div>';
+
+print '<br><br>';
 
 print info_admin($langs->trans("DuplicateManagementDescription"));
 

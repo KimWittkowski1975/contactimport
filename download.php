@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2025 Kim Wittkowski <kim.wittkowski@gmx.de>
+/* Copyright (C) 2025 Kim Wittkowski <kim@wittkowski-it.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -70,21 +70,28 @@ if (!$user->hasRight('contactimport', 'contactimport', 'read')) {
 	accessforbidden();
 }
 
-// Parameters
-$session_id = GETPOST('session_id', 'int');
-
-// Initialize objects
+// Always load the newest session, ignoring any session_id parameter
 $session = new ContactImportSession($db);
 
-// Load session
-if ($session_id > 0) {
+// Query to get the newest session
+$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."contactimport_sessions";
+$sql .= " WHERE entity = ".$conf->entity;
+$sql .= " ORDER BY date_creation DESC";
+$sql .= " LIMIT 1";
+
+$resql = $db->query($sql);
+if ($resql && $db->num_rows($resql) > 0) {
+	$obj = $db->fetch_object($resql);
+	$session_id = $obj->rowid;
+	$db->free($resql);
+	
 	$result = $session->fetch($session_id);
 	if ($result <= 0) {
-		print 'Error: Could not load import session';
+		print 'Error: Could not load newest import session';
 		exit;
 	}
 } else {
-	print 'Error: No session ID provided';
+	print 'Error: No import sessions found';
 	exit;
 }
 

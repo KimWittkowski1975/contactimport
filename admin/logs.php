@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2025 Kim Wittkowski <kim.wittkowski@gmx.de>
+/* Copyright (C) 2025 Kim Wittkowski <kim@wittkowski-it.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -143,6 +143,40 @@ if ($action == 'confirm_delete_logs' && $confirm == 'yes') {
 	$action = '';
 }
 
+// Reset all statistics (delete sessions and logs)
+if ($action == 'confirm_reset_statistics' && $confirm == 'yes') {
+	$db->begin();
+	
+	$error = 0;
+	
+	// Delete all logs first
+	$sql = "DELETE FROM ".MAIN_DB_PREFIX."contactimport_logs WHERE fk_session IN (SELECT rowid FROM ".MAIN_DB_PREFIX."contactimport_sessions WHERE entity = ".$conf->entity.")";
+	$resql = $db->query($sql);
+	if (!$resql) {
+		$error++;
+		setEventMessages($db->lasterror(), null, 'errors');
+	}
+	
+	// Delete all sessions
+	if (!$error) {
+		$sql = "DELETE FROM ".MAIN_DB_PREFIX."contactimport_sessions WHERE entity = ".$conf->entity;
+		$resql = $db->query($sql);
+		if (!$resql) {
+			$error++;
+			setEventMessages($db->lasterror(), null, 'errors');
+		}
+	}
+	
+	if (!$error) {
+		$db->commit();
+		setEventMessages($langs->trans("StatisticsReset"), null, 'mesgs');
+	} else {
+		$db->rollback();
+	}
+	
+	$action = '';
+}
+
 // View import session details
 if ($action == 'view_session' && $session_id > 0) {
 	// Details will be shown in the view section below
@@ -191,6 +225,14 @@ function confirmDeleteLogs(daysOld) {
 		: "<?php echo $langs->trans("ConfirmDeleteAllLogs"); ?>";
 	if (confirm(message)) {
 		window.location.href = "<?php echo $_SERVER["PHP_SELF"]; ?>?action=confirm_delete_logs&days_old=" + daysOld + "&confirm=yes&token=<?php echo newToken(); ?>";
+		return true;
+	}
+	return false;
+}
+
+function confirmResetStatistics() {
+	if (confirm("<?php echo $langs->trans("ConfirmResetAllStatistics"); ?>\n\n<?php echo $langs->trans("ThisWillDeleteAllSessionsAndLogs"); ?>")) {
+		window.location.href = "<?php echo $_SERVER["PHP_SELF"]; ?>?action=confirm_reset_statistics&confirm=yes&token=<?php echo newToken(); ?>";
 		return true;
 	}
 	return false;
@@ -349,6 +391,7 @@ if ($resql) {
 // Delete logs action buttons
 print '<br>';
 print '<div class="tabsAction">';
+print '<a href="#" onclick="return confirmResetStatistics();" class="butActionDelete">'.$langs->trans("ResetAllStatistics").'</a>';
 print '<a href="#" onclick="return confirmDeleteLogs(0);" class="butActionDelete">'.$langs->trans("DeleteAllLogs").'</a>';
 print '<a href="#" onclick="return confirmDeleteLogs(30);" class="butAction">'.$langs->trans("DeleteLogsOlderThan", 30).'</a>';
 print '<a href="#" onclick="return confirmDeleteLogs(90);" class="butAction">'.$langs->trans("DeleteLogsOlderThan", 90).'</a>';

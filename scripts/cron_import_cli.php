@@ -1,7 +1,7 @@
 <?php
 /**
  * CLI script for automatic FTP import
- * Copyright (C) 2025 Kim Wittkowski <kim.wittkowski@gmx.de>
+ * Copyright (C) 2025 Kim Wittkowski <kim@wittkowski-it.de>
  */
 
 $sapi_type = php_sapi_name();

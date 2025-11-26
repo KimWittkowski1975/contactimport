@@ -7,7 +7,7 @@
  * Example crontab entry (runs every hour):
  * 0 * * * * /usr/bin/php /usr/share/dolibarr/htdocs/custom/contactimport/scripts/cron_import.php
  * 
- * Copyright (C) 2025 Kim Wittkowski <kim.wittkowski@gmx.de>
+ * Copyright (C) 2025 Kim Wittkowski <kim@wittkowski-it.de>
  */
 
 // Ensure this is run from command line only
