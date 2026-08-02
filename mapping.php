@@ -99,6 +99,22 @@ if ($id > 0) {
 	exit;
 }
 
+// Read CSV headers and sample data - MUST BE BEFORE ACTIONS
+$csv_data = validateCSVFile(
+	$contactimportsession->file_path, 
+	$contactimportsession->csv_separator, 
+	$contactimportsession->csv_enclosure
+);
+
+if (!$csv_data['status']) {
+	setEventMessages($langs->trans("ErrorReadingCSVFile").': '.$csv_data['message'], null, 'errors');
+	header("Location: upload.php");
+	exit;
+}
+
+$csv_headers = $csv_data['headers'];
+$sample_lines = $csv_data['sample_lines'];
+
 /*
  * Actions
  */
@@ -106,25 +122,27 @@ if ($id > 0) {
 if ($action == 'save_mapping' && !$cancel) {
 	$mapping_config = array();
 	
-	// Get company mapping
+	// Get company mapping: Dolibarr field => CSV column index
 	$company_mapping = array();
 	$company_fields = getCompanyMappingFields();
 	foreach ($company_fields as $field_key => $field_label) {
-		if (empty($field_key)) continue;
-		$csv_column = GETPOST('company_'.$field_key, 'alpha');
-		if (!empty($csv_column)) {
-			$company_mapping[$field_key] = $csv_column;
+		if (empty($field_key)) continue; // Skip "None" option
+		$csv_column_idx = GETPOST('company_'.$field_key, 'int');
+		if ($csv_column_idx !== '' && $csv_column_idx >= 0) {
+			// Store as CSV_column_index => dolibarr_field
+			$company_mapping[$csv_column_idx] = $field_key;
 		}
 	}
 	
-	// Get contact mapping
+	// Get contact mapping: Dolibarr field => CSV column index
 	$contact_mapping = array();
 	$contact_fields = getContactMappingFields();
 	foreach ($contact_fields as $field_key => $field_label) {
-		if (empty($field_key)) continue;
-		$csv_column = GETPOST('contact_'.$field_key, 'alpha');
-		if (!empty($csv_column)) {
-			$contact_mapping[$field_key] = $csv_column;
+		if (empty($field_key)) continue; // Skip "None" option
+		$csv_column_idx = GETPOST('contact_'.$field_key, 'int');
+		if ($csv_column_idx !== '' && $csv_column_idx >= 0) {
+			// Store as CSV_column_index => dolibarr_field
+			$contact_mapping[$csv_column_idx] = $field_key;
 		}
 	}
 	
@@ -135,12 +153,12 @@ if ($action == 'save_mapping' && !$cancel) {
 	}
 	
 	// Check if at least company name or contact name is mapped
-	if (!empty($company_mapping) && empty($company_mapping['nom'])) {
+	if (!empty($company_mapping) && !in_array('nom', $company_mapping)) {
 		$error++;
 		$errors[] = $langs->trans("ErrorCompanyNameRequired");
 	}
 	
-	if (!empty($contact_mapping) && empty($contact_mapping['lastname'])) {
+	if (!empty($contact_mapping) && !in_array('lastname', $contact_mapping)) {
 		$error++;
 		$errors[] = $langs->trans("ErrorContactLastnameRequired");
 	}
@@ -149,10 +167,10 @@ if ($action == 'save_mapping' && !$cancel) {
 		$mapping_config = array(
 			'company' => $company_mapping,
 			'contact' => $contact_mapping,
-			'import_mode' => GETPOST('import_mode', 'alpha'),
-			'create_companies' => GETPOST('create_companies', 'int') ? 1 : 0,
-			'create_contacts' => GETPOST('create_contacts', 'int') ? 1 : 0,
-			'link_contacts_to_companies' => GETPOST('link_contacts_to_companies', 'int') ? 1 : 0,
+			'import_mode' => 'both', // Always import both
+			'create_companies' => 1,
+			'create_contacts' => 1,
+			'link_contacts_to_companies' => 1,
 		);
 		
 		$contactimportsession->setMappingConfig($mapping_config);
@@ -170,22 +188,6 @@ if ($action == 'save_mapping' && !$cancel) {
 		}
 	}
 }
-
-// Read CSV headers and sample data
-$csv_data = validateCSVFile(
-	$contactimportsession->file_path, 
-	$contactimportsession->csv_separator, 
-	$contactimportsession->csv_enclosure
-);
-
-if (!$csv_data['status']) {
-	setEventMessages($langs->trans("ErrorReadingCSVFile").': '.$csv_data['message'], null, 'errors');
-	header("Location: upload.php");
-	exit;
-}
-
-$csv_headers = $csv_data['headers'];
-$sample_lines = $csv_data['sample_lines'];
 
 // Load existing mapping if available
 $existing_mapping = $contactimportsession->getMappingConfig();
@@ -219,149 +221,163 @@ if ($error) {
 
 print '<br>';
 
-// Mapping form - START EARLY before CSV preview
+// Mapping form
 print '<form name="mapping_form" action="'.$_SERVER["PHP_SELF"].'?id='.$id.'" method="POST">';
 print '<input type="hidden" name="token" value="'.newToken().'">';
 print '<input type="hidden" name="action" value="save_mapping">';
 
-// Import mode selection
-print load_fiche_titre($langs->trans("ImportSettings"), '', '');
-print '<table class="border centpercent">';
-
-print '<tr>';
-print '<td class="titlefield">'.$langs->trans("ImportMode").'</td>';
-print '<td>';
-$import_modes = array(
-	'company_only' => $langs->trans("CompanyOnly"),
-	'contact_only' => $langs->trans("ContactOnly"),
-	'both' => $langs->trans("CompanyAndContact"),
-);
-print $form->selectarray('import_mode', $import_modes, $existing_mapping['import_mode'] ?? 'both');
-print '</td>';
-print '</tr>';
-
-print '<tr>';
-print '<td>'.$langs->trans("CreateCompanies").'</td>';
-print '<td>';
-print $form->selectyesno('create_companies', $existing_mapping['create_companies'] ?? 1, 1);
-print '</td>';
-print '</tr>';
-
-print '<tr>';
-print '<td>'.$langs->trans("CreateContacts").'</td>';
-print '<td>';
-print $form->selectyesno('create_contacts', $existing_mapping['create_contacts'] ?? 1, 1);
-print '</td>';
-print '</tr>';
-
-print '<tr>';
-print '<td>'.$langs->trans("LinkContactsToCompanies").'</td>';
-print '<td>';
-print $form->selectyesno('link_contacts_to_companies', $existing_mapping['link_contacts_to_companies'] ?? 1, 1);
-print '</td>';
-print '</tr>';
-
-print '</table>';
+// Info box about import mode
+print '<div class="info" style="margin: 20px 0; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 5px;">';
+print '<strong>ℹ️ '.$langs->trans("ImportMode").':</strong> ';
+print $langs->trans("AlwaysImportBothCompanyAndContact");
+print '<br><small>'.$langs->trans("EachCSVRowCreatesCompanyAndLinkedContact").'</small>';
+print '</div>';
 
 print '<br>';
 
-// Build Dolibarr fields list (combined company and contact fields)
-$dolibarr_fields = array();
-$company_fields = getCompanyMappingFields();
-$contact_fields = getContactMappingFields();
-
-foreach ($company_fields as $field_key => $field_label) {
-	if (!empty($field_key)) {
-		$dolibarr_fields[] = array(
-			'key' => 'company_'.$field_key,
-			'label' => '['.$langs->trans("Company").'] '.$field_label,
-			'type' => 'company'
-		);
-	}
-}
-
-foreach ($contact_fields as $field_key => $field_label) {
-	if (!empty($field_key)) {
-		$dolibarr_fields[] = array(
-			'key' => 'contact_'.$field_key,
-			'label' => '['.$langs->trans("Contact").'] '.$field_label,
-			'type' => 'contact'
-		);
-	}
-}
-
-// Field mapping - Two column layout
+// Field mapping - Two separate tables (Company + Contact)
 print load_fiche_titre($langs->trans("FieldMapping"), '', '');
 ?>
 <style>
-.mapping-container { display: flex; gap: 30px; margin: 20px 0; }
-.mapping-column { flex: 1; }
-.mapping-column h3 { margin-top: 0; padding: 10px; background-color: #f5f5f5; border-radius: 3px; }
-.mapping-list { list-style: none; padding: 0; margin: 0; }
-.mapping-item { display: flex; align-items: center; padding: 10px; border: 1px solid #ddd; margin-bottom: 5px; background-color: #fafafa; border-radius: 3px; }
-.mapping-item:hover { background-color: #f0f0f0; }
-.mapping-csv-header { font-weight: bold; flex: 0 0 35%; padding-right: 15px; word-break: break-word; color: #0066cc; }
-.mapping-select { flex: 1; }
-.mapping-select select { width: 100%; padding: 5px; border: 1px solid #ccc; border-radius: 3px; }
+.mapping-table-container { margin: 20px 0; }
+.mapping-section-title { padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; font-size: 1.1em; border-radius: 5px 5px 0 0; margin-bottom: 0; }
+.mapping-section-title.company-section { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.mapping-section-title.contact-section { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.mapping-instructions { padding: 10px; background-color: #f0f8ff; border: 1px solid #b0d4f1; border-radius: 3px; margin-bottom: 15px; font-size: 0.9em; }
 </style>
 <?php
 
 print '<div class="fichecenter">';
-print '<div class="mapping-container">';
 
-// Left column - CSV Headers
-print '<div class="mapping-column">';
-print '<h3>'.$langs->trans("CSVColumns").'</h3>';
-print '<p style="color: #666; font-size: 0.9em;">'.$langs->trans("TotalColumns").': <strong>'.count($csv_headers).'</strong></p>';
-print '<ul class="mapping-list">';
-
-foreach ($csv_headers as $idx => $header) {
-	print '<li class="mapping-item">';
-	print '<div class="mapping-csv-header">'.dol_escape_htmltag($header).'<br><small style="color: #999;">Col '.($idx + 1).'</small></div>';
-	print '</li>';
-}
-
-print '</ul>';
+// Instructions
+print '<div class="mapping-instructions">';
+print '<strong>ℹ️ '.$langs->trans("Instructions").':</strong><br>';
+print '• '.$langs->trans("MapCSVColumnsToBothCompanyAndContact").'<br>';
+print '• '.$langs->trans("SameCSVColumnCanBeMappedToBothTypes").'<br>';
+print '• '.$langs->trans("RequiredCompanyName").'<br>';
+print '• '.$langs->trans("RequiredContactLastname");
 print '</div>';
 
-// Right column - Dolibarr Fields with dropdowns
-print '<div class="mapping-column">';
-print '<h3>'.$langs->trans("DolibarrFields").'</h3>';
-print '<p style="color: #666; font-size: 0.9em;">'.$langs->trans("SelectFieldMapping").'</p>';
+// COMPANY MAPPING TABLE
+print '<div class="mapping-table-container">';
+print '<div class="mapping-section-title company-section">🏢 '.$langs->trans("CompanyMapping").'</div>';
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th class="left" width="40%">'.$langs->trans("DolibarrCompanyField").'</th>';
+print '<th class="left" width="40%">'.$langs->trans("SelectCSVColumn").'</th>';
+print '<th class="center" width="20%">'.$langs->trans("SampleData").'</th>';
+print '</tr>';
 
-$csv_column_options = array('' => '-- '.$langs->trans("None").' --');
+$company_fields = getCompanyMappingFields();
+
+// Build CSV column options for dropdown
+$csv_column_options = array('' => $langs->trans("None"));
 foreach ($csv_headers as $idx => $header) {
-	$csv_column_options[$idx] = $header.' (Col '.($idx + 1).')';
+	$csv_column_options[$idx] = $langs->trans("Column").' '.($idx + 1).': '.dol_trunc($header, 30);
 }
 
-print '<ul class="mapping-list">';
-
-foreach ($dolibarr_fields as $field) {
-	$field_key = $field['key'];
-	$field_label = $field['label'];
+foreach ($company_fields as $field_key => $field_label) {
+	if (empty($field_key)) continue; // Skip the "None" option from field list
 	
-	// Determine selected value based on existing mapping
-	$selected_column = '';
-	if ($field['type'] === 'company') {
-		$company_key = str_replace('company_', '', $field_key);
-		$selected_column = $existing_mapping['company'][$company_key] ?? '';
-	} else {
-		$contact_key = str_replace('contact_', '', $field_key);
-		$selected_column = $existing_mapping['contact'][$contact_key] ?? '';
+	print '<tr class="oddeven">';
+	
+	// Dolibarr Field Name
+	print '<td><strong>'.$field_label.'</strong>';
+	if ($field_key == 'nom') {
+		print ' <span class="badge badge-status4">'.$langs->trans("Required").'</span>';
 	}
+	print '</td>';
 	
-	print '<li class="mapping-item">';
-	print '<div class="mapping-select">';
-	print '<strong style="display: block; margin-bottom: 5px; color: #333;">'.dol_escape_htmltag($field_label).'</strong>';
-	print $form->selectarray($field_key, $csv_column_options, $selected_column, 0, 0, 0, '', 1);
-	print '</div>';
-	print '</li>';
+	// CSV Column Dropdown
+	print '<td>';
+	$selected_csv_column = '';
+	// Find which CSV column is mapped to this field
+	if (!empty($existing_mapping['company'])) {
+		foreach ($existing_mapping['company'] as $csv_idx => $mapped_field) {
+			if ($mapped_field === $field_key) {
+				$selected_csv_column = $csv_idx;
+				break;
+			}
+		}
+	}
+	print $form->selectarray('company_'.$field_key, $csv_column_options, $selected_csv_column, 0, 0, 0, '', 1, 0, 0, '', 'minwidth300');
+	print '</td>';
+	
+	// Sample data (show sample from selected column)
+	print '<td class="center" style="font-size: 0.85em; color: #666;">';
+	if ($selected_csv_column !== '' && isset($sample_lines[0][$selected_csv_column])) {
+		print dol_escape_htmltag(dol_trunc($sample_lines[0][$selected_csv_column], 30));
+	} else {
+		print '<span class="opacitymedium">-</span>';
+	}
+	print '</td>';
+	
+	print '</tr>';
 }
 
-print '</ul>';
+print '</table>';
+print '</div>';
 print '</div>';
 
+print '<br>';
+
+// CONTACT MAPPING TABLE
+print '<div class="mapping-table-container">';
+print '<div class="mapping-section-title contact-section">👤 '.$langs->trans("ContactMapping").'</div>';
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th class="left" width="40%">'.$langs->trans("DolibarrContactField").'</th>';
+print '<th class="left" width="40%">'.$langs->trans("SelectCSVColumn").'</th>';
+print '<th class="center" width="20%">'.$langs->trans("SampleData").'</th>';
+print '</tr>';
+
+$contact_fields = getContactMappingFields();
+
+foreach ($contact_fields as $field_key => $field_label) {
+	if (empty($field_key)) continue; // Skip the "None" option
+	
+	print '<tr class="oddeven">';
+	
+	// Dolibarr Field Name
+	print '<td><strong>'.$field_label.'</strong>';
+	if ($field_key == 'lastname') {
+		print ' <span class="badge badge-status4">'.$langs->trans("Required").'</span>';
+	}
+	print '</td>';
+	
+	// CSV Column Dropdown
+	print '<td>';
+	$selected_csv_column = '';
+	// Find which CSV column is mapped to this field
+	if (!empty($existing_mapping['contact'])) {
+		foreach ($existing_mapping['contact'] as $csv_idx => $mapped_field) {
+			if ($mapped_field === $field_key) {
+				$selected_csv_column = $csv_idx;
+				break;
+			}
+		}
+	}
+	print $form->selectarray('contact_'.$field_key, $csv_column_options, $selected_csv_column, 0, 0, 0, '', 1, 0, 0, '', 'minwidth300');
+	print '</td>';
+	
+	// Sample data
+	print '<td class="center" style="font-size: 0.85em; color: #666;">';
+	if ($selected_csv_column !== '' && isset($sample_lines[0][$selected_csv_column])) {
+		print dol_escape_htmltag(dol_trunc($sample_lines[0][$selected_csv_column], 30));
+	} else {
+		print '<span class="opacitymedium">-</span>';
+	}
+	print '</td>';
+	
+	print '</tr>';
+}
+
+print '</table>';
 print '</div>';
+print '</div>';
+
 print '</div>';
 
 print '<br>';

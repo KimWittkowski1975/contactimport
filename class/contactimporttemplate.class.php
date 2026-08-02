@@ -60,6 +60,7 @@ class ContactImportTemplate extends CommonObject
 		'csv_separator' => array('type'=>'varchar(10)', 'label'=>'CSVSeparator', 'enabled'=>1, 'position'=>80, 'notnull'=>0, 'visible'=>1, 'default'=>';'),
 		'csv_enclosure' => array('type'=>'varchar(10)', 'label'=>'CSVEnclosure', 'enabled'=>1, 'position'=>90, 'notnull'=>0, 'visible'=>1, 'default'=>'"'),
 		'has_header' => array('type'=>'integer', 'label'=>'HasHeader', 'enabled'=>1, 'position'=>100, 'notnull'=>0, 'visible'=>1, 'default'=>'1'),
+		'last_order_column' => array('type'=>'varchar(255)', 'label'=>'LastOrderColumn', 'enabled'=>1, 'position'=>105, 'notnull'=>0, 'visible'=>1, 'help'=>'NameOfColumnWithLastOrderDate'),
 		'is_default' => array('type'=>'integer', 'label'=>'DefaultTemplate', 'enabled'=>1, 'position'=>110, 'notnull'=>0, 'visible'=>1, 'default'=>'0'),
 		'status' => array('type'=>'integer', 'label'=>'Status', 'enabled'=>1, 'position'=>120, 'notnull'=>1, 'visible'=>1, 'default'=>'1', 'index'=>1),
 		'date_creation' => array('type'=>'datetime', 'label'=>'DateCreation', 'enabled'=>1, 'position'=>500, 'notnull'=>1, 'visible'=>-2),
@@ -76,6 +77,7 @@ class ContactImportTemplate extends CommonObject
 	public $csv_separator;
 	public $csv_enclosure;
 	public $has_header;
+	public $last_order_column;
 	public $is_default;
 	public $status;
 	public $date_creation;
@@ -129,6 +131,11 @@ class ContactImportTemplate extends CommonObject
 	 */
 	public function create(User $user, $notrigger = false)
 	{
+		// If marked as default, reset all other defaults first
+		if (!empty($this->is_default) && $this->is_default == 1) {
+			$this->resetOtherDefaults();
+		}
+		
 		$resultcreate = $this->createCommon($user, $notrigger);
 
 		return $resultcreate;
@@ -156,6 +163,11 @@ class ContactImportTemplate extends CommonObject
 	 */
 	public function update(User $user, $notrigger = false)
 	{
+		// If marked as default, reset all other defaults first
+		if (!empty($this->is_default) && $this->is_default == 1) {
+			$this->resetOtherDefaults();
+		}
+		
 		return $this->updateCommon($user, $notrigger);
 	}
 
@@ -194,5 +206,28 @@ class ContactImportTemplate extends CommonObject
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Reset all other templates to non-default
+	 * Called automatically when setting a new default template
+	 *
+	 * @return int >0 if OK, <0 if KO
+	 */
+	private function resetOtherDefaults()
+	{
+		global $conf;
+		
+		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element;
+		$sql .= " SET is_default = 0";
+		$sql .= " WHERE entity IN (0, ".($conf->entity > 0 ? $conf->entity : 1).")";
+		
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		
+		return 1;
 	}
 }

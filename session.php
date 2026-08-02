@@ -119,6 +119,61 @@ if (empty($reshook)) {
 			setEventMessages($session->error, $session->errors, 'errors');
 		}
 	}
+
+	// Rollback: delete the companies/contacts that were newly CREATED by this import session.
+	// Records that already existed and were merely UPDATED cannot be reverted (their previous values are not stored).
+	if ($action == 'confirm_rollback' && $confirm == 'yes' && $user->hasRight('contactimport', 'contactimport', 'write')) {
+		if (in_array($session->status, array(ContactImportSession::STATUS_COMPLETED, ContactImportSession::STATUS_ERROR))) {
+			require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
+			require_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
+
+			$deleted_companies = 0;
+			$deleted_contacts = 0;
+			$failed = 0;
+
+			// Only logs with status 'success' correspond to records actually CREATED by this session
+			$sql = "SELECT rowid, company_id, contact_id FROM ".MAIN_DB_PREFIX."contactimport_logs";
+			$sql .= " WHERE fk_session = ".((int) $session->id)." AND status = 'success'";
+			$resql = $db->query($sql);
+
+			if ($resql) {
+				while ($obj = $db->fetch_object($resql)) {
+					if ($obj->contact_id > 0) {
+						$contact = new Contact($db);
+						if ($contact->fetch($obj->contact_id) > 0 && $contact->delete($user) > 0) {
+							$deleted_contacts++;
+						} else {
+							$failed++;
+						}
+					}
+					if ($obj->company_id > 0) {
+						$societe = new Societe($db);
+						if ($societe->fetch($obj->company_id) > 0 && $societe->delete($societe->id) > 0) {
+							$deleted_companies++;
+						} else {
+							$failed++;
+						}
+					}
+				}
+				$db->free($resql);
+			}
+
+			$session->status = ContactImportSession::STATUS_ROLLED_BACK;
+			$session->update($user);
+
+			$msg = $langs->trans('RollbackResultMessage', $deleted_companies, $deleted_contacts);
+			if ($failed > 0) {
+				setEventMessages($msg, array($langs->trans('RollbackPartialFailures', $failed)), 'warnings');
+			} else {
+				setEventMessages($msg, null, 'mesgs');
+			}
+
+			header('Location: '.$_SERVER['PHP_SELF'].'?id='.$session->id);
+			exit;
+		} else {
+			setEventMessages($langs->trans('RollbackNotPossible'), null, 'errors');
+		}
+	}
 }
 
 /*
@@ -143,6 +198,27 @@ print dol_get_fiche_head(contactimportPrepareHead($session), 'card', $langs->tra
 // Confirm delete
 if ($action == 'delete') {
 	$formconfirm = $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$session->id, $langs->trans('DeleteImportSession'), $langs->trans('ConfirmDeleteImportSession'), 'confirm_delete', '', 0, 1);
+	print $formconfirm;
+}
+
+// Confirm rollback
+if ($action == 'rollback') {
+	$sql = "SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."contactimport_logs WHERE fk_session = ".((int) $session->id)." AND status = 'success'";
+	$resql = $db->query($sql);
+	$created_count = 0;
+	if ($resql) {
+		$obj = $db->fetch_object($resql);
+		$created_count = (int) $obj->nb;
+		$db->free($resql);
+	}
+	$updated_count = (int) $session->companies_updated + (int) $session->contacts_updated;
+
+	$rollback_text = $langs->trans('ConfirmRollbackImportSession', $created_count);
+	if ($updated_count > 0) {
+		$rollback_text .= '<br><br><span class="warning">'.$langs->trans('RollbackUpdatedRecordsWarning', $updated_count).'</span>';
+	}
+
+	$formconfirm = $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$session->id, $langs->trans('RollbackImportSession'), $rollback_text, 'confirm_rollback', '', 0, 1);
 	print $formconfirm;
 }
 
@@ -316,6 +392,13 @@ if ($session->status >= 4) {
 	// Completed - view logs
 	print '<div class="inline-block divButAction">';
 	print '<a href="'.dol_buildpath('/contactimport/logs.php', 1).'?id='.$session->id.'" class="butAction">'.$langs->trans('ViewImportLogs').'</a>';
+	print '</div>';
+}
+
+// Rollback - only for completed/error sessions that have not already been rolled back, and only if anything was actually created
+if (in_array($session->status, array(ContactImportSession::STATUS_COMPLETED, ContactImportSession::STATUS_ERROR)) && $user->hasRight('contactimport', 'contactimport', 'write')) {
+	print '<div class="inline-block divButAction">';
+	print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$session->id.'&action=rollback&token='.newToken().'" class="butActionDelete">'.$langs->trans('RollbackImportSession').'</a>';
 	print '</div>';
 }
 

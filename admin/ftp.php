@@ -78,14 +78,17 @@ $arrayofparameters = array(
 		'enabled' => 1
 	),
 	'CONTACTIMPORT_FTP_HOST' => array(
+		'type' => 'chaine',
 		'css' => 'minwidth300',
 		'enabled' => 1
 	),
 	'CONTACTIMPORT_FTP_PORT' => array(
+		'type' => 'chaine',
 		'css' => 'minwidth100',
 		'enabled' => 1
 	),
 	'CONTACTIMPORT_FTP_USER' => array(
+		'type' => 'chaine',
 		'css' => 'minwidth200',
 		'enabled' => 1
 	),
@@ -95,6 +98,7 @@ $arrayofparameters = array(
 		'enabled' => 1
 	),
 	'CONTACTIMPORT_FTP_PATH' => array(
+		'type' => 'chaine',
 		'css' => 'minwidth300',
 		'enabled' => 1
 	),
@@ -106,15 +110,27 @@ $arrayofparameters = array(
 		'type' => 'yesno',
 		'enabled' => 1
 	),
+	'CONTACTIMPORT_FTP_DELETE_OLD_FILES' => array(
+		'type' => 'yesno',
+		'enabled' => 1
+	),
+	'CONTACTIMPORT_FTP_OLD_FILES_DAYS' => array(
+		'type' => 'chaine',
+		'css' => 'minwidth100',
+		'enabled' => 1,
+		'default' => '30'
+	),
 	'CONTACTIMPORT_FTP_DELETE_AFTER_IMPORT' => array(
 		'type' => 'yesno',
 		'enabled' => 1
 	),
 	'CONTACTIMPORT_FTP_FILE_PATTERN' => array(
+		'type' => 'chaine',
 		'css' => 'minwidth200',
 		'enabled' => 1
 	),
 	'CONTACTIMPORT_FTP_SYNC_INTERVAL' => array(
+		'type' => 'chaine',
 		'css' => 'minwidth100',
 		'enabled' => 1
 	),
@@ -222,8 +238,24 @@ if ($action == 'test') {
 			setEventMessages($langs->trans("FTPConnectionFailed").': '.$error_message, null, 'errors');
 		}
 	}
-	
+
 	$action = '';
+}
+
+// List files currently available on the FTP/SFTP server (read-only, nothing is downloaded)
+$remote_files = null;
+if ($action == 'list_files') {
+	require_once '../class/contactimportftp.class.php';
+
+	$ftp = new ContactImportFTP($db);
+	$remote_files = $ftp->listRemoteFiles();
+
+	if (!is_array($remote_files)) {
+		setEventMessages($langs->trans("FTPConnectionFailed").': '.$ftp->error, null, 'errors');
+		$remote_files = null;
+	} elseif (empty($remote_files)) {
+		setEventMessages($langs->trans("NoFilesFound"), null, 'warnings');
+	}
 }
 
 /*
@@ -332,7 +364,11 @@ if ($action == 'edit') {
 
 		if ($val['type'] == 'select') {
 			$selected = getDolGlobalString($constname);
-			print $val['choices'][$selected];
+			if (!empty($val['choices']) && isset($val['choices'][$selected])) {
+				print $val['choices'][$selected];
+			} else {
+				print '<span class="opacitymedium">'.$langs->trans("None").'</span>';
+			}
 		} elseif ($val['type'] == 'yesno') {
 			print ajax_constantonoff($constname);
 		} elseif ($val['type'] == 'password') {
@@ -350,7 +386,41 @@ if ($action == 'edit') {
 	print '<div class="tabsAction">';
 	print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?action=edit&token='.newToken().'">'.$langs->trans("Modify").'</a>';
 	print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?action=test&token='.newToken().'">'.$langs->trans("TestConnection").'</a>';
+	print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?action=list_files&token='.newToken().'">'.$langs->trans("ShowFilesOnServer").'</a>';
 	print '</div>';
+
+	// Show list of files currently on the FTP/SFTP server (read-only preview, nothing is downloaded)
+	if (is_array($remote_files)) {
+		print '<br><div class="div-table-responsive-sm">';
+		print '<table class="noborder centpercent">';
+		print '<tr class="liste_titre">';
+		print '<th>'.$langs->trans("Filename").'</th>';
+		print '<th class="right">'.$langs->trans("Size").'</th>';
+		print '<th class="center">'.$langs->trans("DateModification").'</th>';
+		print '<th class="center"></th>';
+		print '</tr>';
+
+		if (empty($remote_files)) {
+			print '<tr><td colspan="4" class="opacitymedium">'.$langs->trans("NoFilesFound").'</td></tr>';
+		} else {
+			foreach ($remote_files as $index => $remote_file) {
+				print '<tr class="oddeven">';
+				print '<td>'.dol_escape_htmltag($remote_file['name']).'</td>';
+				print '<td class="right">'.dol_print_size($remote_file['size']).'</td>';
+				print '<td class="center">'.($remote_file['mtime'] ? dol_print_date($remote_file['mtime'], 'dayhour') : '-').'</td>';
+				print '<td class="center">';
+				if ($index === 0) {
+					print '<span class="badge badge-status4" style="background-color: #25a864; color: white;">'.$langs->trans("LatestFile").'</span>';
+				}
+				print '</td>';
+				print '</tr>';
+			}
+		}
+
+		print '</table>';
+		print '</div>';
+		print '<div class="opacitymedium" style="margin-top: 5px;">'.$langs->trans("ShowFilesOnServerHelp").'</div>';
+	}
 }
 
 // Page end

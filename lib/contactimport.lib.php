@@ -135,8 +135,10 @@ function getCompanyMappingFields()
 		'code_fournisseur' => $langs->trans("SupplierCode"),
 		'note_public' => $langs->trans("NotePublic"),
 		'note_private' => $langs->trans("NotePrivate"),
+		'options_last_order_date' => $langs->trans("LastOrderDate"),
 	);
 	
+	// Note: options_* prefix is for extrafields in Dolibarr
 	return $fields;
 }
 

@@ -54,6 +54,8 @@ global $langs, $user, $conf;
 // Libraries
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 require_once '../lib/contactimport.lib.php';
+require_once '../class/contactimportftp.class.php';
+require_once '../class/contactimporttemplate.class.php';
 
 // Translations
 $langs->loadLangs(array("admin", "contactimport@contactimport"));
@@ -69,14 +71,17 @@ $backtopage = GETPOST('backtopage', 'alpha');
 
 $arrayofparameters = array(
 	'CONTACTIMPORT_DEFAULT_CSV_SEPARATOR' => array(
+		'type' => 'chaine',
 		'css' => 'minwidth200',
 		'enabled' => 1
 	),
 	'CONTACTIMPORT_DEFAULT_CSV_ENCLOSURE' => array(
+		'type' => 'chaine',
 		'css' => 'minwidth200',
 		'enabled' => 1
 	),
 	'CONTACTIMPORT_MAX_FILE_SIZE' => array(
+		'type' => 'chaine',
 		'css' => 'minwidth200',
 		'enabled' => 1
 	),
@@ -107,6 +112,86 @@ $arrayofparameters = array(
  * Actions
  */
 
+// Test FTP Import
+$test_import_stats = array();
+if ($action == 'test_ftp_import') {
+	$ftp = new ContactImportFTP($db);
+	
+	// Check if FTP is enabled
+	if (!getDolGlobalString('CONTACTIMPORT_FTP_ENABLED')) {
+		setEventMessages($langs->trans("ErrorFTPNotEnabled"), null, 'errors');
+	} else {
+		// Download files from FTP
+		$download_result = $ftp->downloadFiles();
+		
+		if ($download_result > 0) {
+			setEventMessages($langs->trans("FilesDownloaded", $download_result), null, 'mesgs');
+			
+			// Get default template
+			$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."contactimport_templates";
+			$sql .= " WHERE entity = ".$conf->entity;
+			$sql .= " AND is_default = 1";
+			$sql .= " LIMIT 1";
+			
+			$resql = $db->query($sql);
+			$default_template_id = 0;
+			if ($resql && $db->num_rows($resql) > 0) {
+				$obj = $db->fetch_object($resql);
+				$default_template_id = $obj->rowid;
+			}
+			
+			if ($default_template_id > 0) {
+				// Try to import downloaded files
+				$import_result = $ftp->autoImportDownloadedFiles();
+				
+				if ($import_result > 0) {
+					setEventMessages($langs->trans("TestImportSuccessful").' - '.$import_result.' '.$langs->trans("FilesImported"), null, 'mesgs');
+					
+					// Get detailed statistics for display
+					$sql = "SELECT s.rowid, s.ref, s.filename, s.total_lines, s.processed_lines, s.success_lines, s.error_lines,";
+					$sql .= " s.companies_created, s.companies_updated, s.contacts_created, s.contacts_updated, s.duplicates_skipped";
+					$sql .= " FROM ".MAIN_DB_PREFIX."contactimport_sessions as s";
+					$sql .= " WHERE s.entity = ".$conf->entity;
+					$sql .= " ORDER BY s.date_creation DESC";
+					$sql .= " LIMIT ".$import_result;
+					
+					$resql = $db->query($sql);
+					if ($resql && $db->num_rows($resql) > 0) {
+						while ($obj = $db->fetch_object($resql)) {
+							$test_import_stats[] = array(
+								'rowid' => $obj->rowid,
+								'ref' => $obj->ref,
+								'filename' => $obj->filename,
+								'total_lines' => $obj->total_lines,
+								'processed_lines' => $obj->processed_lines,
+								'success_lines' => $obj->success_lines,
+								'error_lines' => $obj->error_lines,
+								'companies_created' => $obj->companies_created,
+								'companies_updated' => $obj->companies_updated,
+								'contacts_created' => $obj->contacts_created,
+								'contacts_updated' => $obj->contacts_updated,
+								'duplicates_skipped' => $obj->duplicates_skipped
+							);
+						}
+					}
+				} elseif ($import_result == 0) {
+					setEventMessages($langs->trans("NoFilesToImport"), null, 'warnings');
+				} else {
+					setEventMessages($ftp->error, null, 'errors');
+				}
+			} else {
+				setEventMessages($langs->trans("ErrorNoDefaultTemplate"), null, 'errors');
+			}
+		} elseif ($download_result == 0) {
+			setEventMessages($langs->trans("NoFilesFoundOnFTP"), null, 'warnings');
+		} else {
+			setEventMessages($ftp->error, null, 'errors');
+		}
+	}
+	
+	$action = ''; // Reset action to show normal page
+}
+
 include DOL_DOCUMENT_ROOT.'/core/actions_setmoduleoptions.inc.php';
 
 /*
@@ -125,8 +210,166 @@ print load_fiche_titre($langs->trans($page_name), $linkback, 'title_setup');
 $head = contactimportAdminPrepareHead();
 print dol_get_fiche_head($head, 'settings', $langs->trans($page_name), -1, 'contactimport@contactimport');
 
+// Workflow Guide Info Box
+print '<div class="info hideonsmartphone" style="margin-bottom: 20px;">';
+print '<div class="fa fa-info-circle" style="float: left; margin-right: 10px; font-size: 2em; color: #4e9fdd;"></div>';
+print '<div style="margin-left: 45px;">';
+print '<h3 style="margin-top: 0;">'.$langs->trans("ImportWorkflow").'</h3>';
+print '<ol style="margin: 5px 0; padding-left: 20px;">';
+print '<li><strong>'.$langs->trans("UploadCSVFile").':</strong> '.$langs->trans("UploadCSVFileDesc").'</li>';
+print '<li><strong>'.$langs->trans("ConfigureMapping").':</strong> '.$langs->trans("ConfigureMappingDesc").'</li>';
+print '<li><strong>'.$langs->trans("RunImport").':</strong> '.$langs->trans("RunImportDesc").'</li>';
+print '</ol>';
+print '<div class="center" style="margin-top: 15px;">';
+
+// Get default template for "Start New Import" button
+$sql_default = "SELECT rowid FROM ".MAIN_DB_PREFIX."contactimport_templates";
+$sql_default .= " WHERE entity = ".$conf->entity." AND is_default = 1";
+$resql_default = $db->query($sql_default);
+$default_template_id = 0;
+if ($resql_default && $db->num_rows($resql_default) > 0) {
+	$obj_default = $db->fetch_object($resql_default);
+	$default_template_id = $obj_default->rowid;
+}
+
+// Button: Start New Import
+if ($default_template_id > 0) {
+	// Default template exists - start import directly
+	print '<a class="butAction" href="'.DOL_URL_ROOT.'/custom/contactimport/admin/templates.php?action=ftp_download&id='.$default_template_id.'&token='.newToken().'">';
+	print '<span class="fa fa-play paddingright"></span>'.$langs->trans("StartNewImport");
+	print '</a>';
+} else {
+	// No default template - show disabled button with tooltip
+	print '<a class="butActionRefused" href="#" title="'.$langs->trans("CreateDefaultTemplateFirst").'">';
+	print '<span class="fa fa-play paddingright"></span>'.$langs->trans("StartNewImport");
+	print '</a>';
+}
+
+print '<a class="butAction" href="'.DOL_URL_ROOT.'/custom/contactimport/admin/templates.php" style="margin-left: 10px;">';
+print '<span class="fa fa-file-text-o paddingright"></span>'.$langs->trans("ManageTemplates");
+print '</a>';
+
+// Test FTP Import button (only if FTP is enabled and default template exists)
+if (getDolGlobalString('CONTACTIMPORT_FTP_ENABLED')) {
+	// Check if default template exists
+	$sql = "SELECT COUNT(*) as cnt FROM ".MAIN_DB_PREFIX."contactimport_templates";
+	$sql .= " WHERE entity = ".$conf->entity." AND is_default = 1";
+	$resql = $db->query($sql);
+	$has_default_template = false;
+	if ($resql) {
+		$obj = $db->fetch_object($resql);
+		$has_default_template = ($obj->cnt > 0);
+	}
+	
+	if ($has_default_template) {
+		print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?action=test_ftp_import&token='.newToken().'" style="margin-left: 10px; background-color: #dd9f4e;">';
+		print '<span class="fa fa-download paddingright"></span>'.$langs->trans("TestFTPImport");
+		print '</a>';
+	} else {
+		print '<a class="butActionRefused" href="#" title="'.$langs->trans("CreateDefaultTemplateFirst").'" style="margin-left: 10px;">';
+		print '<span class="fa fa-download paddingright"></span>'.$langs->trans("TestFTPImport");
+		print '</a>';
+	}
+}
+
+print '</div>';
+print '</div>';
+print '</div>';
+
 // Setup page goes here
 print info_admin($langs->trans("ContactImportSetupDescription"));
+
+// Display Test Import Statistics if available
+if (!empty($test_import_stats)) {
+	print '<br>';
+	print '<div class="info" style="background-color: #e8f4f8; border-left: 4px solid #4e9fdd; padding: 15px; margin: 20px 0;">';
+	print '<h3 style="margin-top: 0; color: #4e9fdd;"><span class="fa fa-bar-chart paddingright"></span>'.$langs->trans("TestImportResults").'</h3>';
+	
+	print '<table class="noborder centpercent">';
+	print '<tr class="liste_titre">';
+	print '<th class="left">'.$langs->trans("Filename").'</th>';
+	print '<th class="center">'.$langs->trans("TotalLines").'</th>';
+	print '<th class="center">'.$langs->trans("Processed").'</th>';
+	print '<th class="center">'.$langs->trans("Success").'</th>';
+	print '<th class="center">'.$langs->trans("Errors").'</th>';
+	print '<th class="center">'.$langs->trans("Companies").'</th>';
+	print '<th class="center">'.$langs->trans("Contacts").'</th>';
+	print '<th class="center">'.$langs->trans("Action").'</th>';
+	print '</tr>';
+	
+	foreach ($test_import_stats as $stat) {
+		$success_rate = $stat['total_lines'] > 0 ? round(($stat['success_lines'] / $stat['total_lines']) * 100, 1) : 0;
+		
+		print '<tr class="oddeven">';
+		
+		// Filename
+		print '<td><strong>'.dol_escape_htmltag($stat['filename']).'</strong>';
+		print '<br><small class="opacitymedium">'.$stat['ref'].'</small></td>';
+		
+		// Total Lines
+		print '<td class="center"><strong>'.$stat['total_lines'].'</strong></td>';
+		
+		// Processed
+		print '<td class="center">'.$stat['processed_lines'].'</td>';
+		
+		// Success (with percentage)
+		$success_color = $success_rate >= 90 ? '#00a65a' : ($success_rate >= 70 ? '#f39c12' : '#dd4b39');
+		print '<td class="center">';
+		print '<strong style="color: '.$success_color.';">'.$stat['success_lines'].'</strong>';
+		print '<br><small style="color: '.$success_color.';">('.$success_rate.'%)</small>';
+		print '</td>';
+		
+		// Errors
+		if ($stat['error_lines'] > 0) {
+			print '<td class="center"><span class="badge badge-status8" style="background-color: #dd4b39;">'.$stat['error_lines'].'</span></td>';
+		} else {
+			print '<td class="center"><span class="opacitymedium">0</span></td>';
+		}
+		
+		// Companies (Created / Updated)
+		print '<td class="center">';
+		print '<span style="color: #00a65a;" title="'.$langs->trans("Created").'">+'.$stat['companies_created'].'</span> / ';
+		print '<span style="color: #f39c12;" title="'.$langs->trans("Updated").'">↻'.$stat['companies_updated'].'</span>';
+		print '</td>';
+		
+		// Contacts (Created / Updated)
+		print '<td class="center">';
+		print '<span style="color: #00a65a;" title="'.$langs->trans("Created").'">+'.$stat['contacts_created'].'</span> / ';
+		print '<span style="color: #f39c12;" title="'.$langs->trans("Updated").'">↻'.$stat['contacts_updated'].'</span>';
+		print '</td>';
+		
+		// Action - View Details
+		print '<td class="center">';
+		print '<a href="'.DOL_URL_ROOT.'/custom/contactimport/import.php" class="button" title="'.$langs->trans("ViewImportHistory").'">';
+		print '<span class="fa fa-list paddingright"></span>'.$langs->trans("ViewDetails");
+		print '</a>';
+		print '</td>';
+		
+		print '</tr>';
+	}
+	
+	print '</table>';
+	
+	// Summary
+	$total_companies_created = array_sum(array_column($test_import_stats, 'companies_created'));
+	$total_companies_updated = array_sum(array_column($test_import_stats, 'companies_updated'));
+	$total_contacts_created = array_sum(array_column($test_import_stats, 'contacts_created'));
+	$total_contacts_updated = array_sum(array_column($test_import_stats, 'contacts_updated'));
+	$total_errors = array_sum(array_column($test_import_stats, 'error_lines'));
+	
+	print '<div style="margin-top: 15px; padding: 10px; background-color: #fff; border-radius: 3px;">';
+	print '<strong>'.$langs->trans("Summary").':</strong> ';
+	print '<span style="color: #00a65a;">🏢 '.$total_companies_created.' '.$langs->trans("CompaniesCreated").'</span>, ';
+	print '<span style="color: #f39c12;">🏢 '.$total_companies_updated.' '.$langs->trans("CompaniesUpdated").'</span>, ';
+	print '<span style="color: #00a65a;">👤 '.$total_contacts_created.' '.$langs->trans("ContactsCreated").'</span>, ';
+	print '<span style="color: #f39c12;">👤 '.$total_contacts_updated.' '.$langs->trans("ContactsUpdated").'</span>';
+	if ($total_errors > 0) {
+		print ', <span style="color: #dd4b39;">❌ '.$total_errors.' '.$langs->trans("ErrorsOccurred").'</span>';
+	}
+	print '</div>';
+	
+	print '</div>';
+}
 
 if ($action == 'edit') {
 	print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';
@@ -240,7 +483,11 @@ if ($action == 'edit') {
 
 		if ($val['type'] == 'select') {
 			$selected = getDolGlobalString($constname);
-			print $val['choices'][$selected];
+			if (!empty($val['choices']) && isset($val['choices'][$selected])) {
+				print $val['choices'][$selected];
+			} else {
+				print '<span class="opacitymedium">'.$langs->trans("None").'</span>';
+			}
 		} elseif ($val['type'] == 'textarea') {
 			print dol_nl2br(getDolGlobalString($constname));
 		} elseif ($val['type'] == 'yesno') {

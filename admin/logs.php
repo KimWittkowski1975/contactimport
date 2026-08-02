@@ -72,6 +72,12 @@ $file_to_delete = GETPOST('file', 'alpha');
 $confirm = GETPOST('confirm', 'alpha');
 $session_id = GETPOST('session_id', 'int');
 $days_old = GETPOST('days_old', 'int');
+$log_status_filter = GETPOST('log_status_filter', 'aZ09');
+$log_page = GETPOSTINT('log_page');
+if ($log_page < 0) {
+	$log_page = 0;
+}
+$log_limit = 100;
 
 // Directories
 $upload_dir = getDolGlobalString('CONTACTIMPORT_TEMP_DIR', DOL_DATA_ROOT.'/contactimport/temp');
@@ -398,6 +404,107 @@ print '<a href="#" onclick="return confirmDeleteLogs(90);" class="butAction">'.$
 print '</div>';
 
 // =====================================
+// SECTION 2.5: Recent Errors and Warnings
+// =====================================
+print '<br><br>';
+print load_fiche_titre($langs->trans("RecentErrorsAndWarnings"), '', '');
+
+// Get recent errors and warnings from logs
+$sql = "SELECT l.rowid, l.fk_session, l.line_number, l.import_type, l.status, l.error_message, l.date_creation,";
+$sql .= " s.ref as session_ref, s.filename";
+$sql .= " FROM ".MAIN_DB_PREFIX."contactimport_logs as l";
+$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."contactimport_sessions as s ON l.fk_session = s.rowid";
+$sql .= " WHERE l.status IN ('error', 'warning')";
+$sql .= " AND s.entity = ".$conf->entity;
+$sql .= " ORDER BY l.date_creation DESC";
+$sql .= " LIMIT 50";
+
+$resql = $db->query($sql);
+if ($resql) {
+	$num = $db->num_rows($resql);
+	
+	print '<table class="noborder centpercent">';
+	print '<tr class="liste_titre">';
+	print '<th>'.$langs->trans("Session").'</th>';
+	print '<th class="center">'.$langs->trans("Line").'</th>';
+	print '<th class="center">'.$langs->trans("Type").'</th>';
+	print '<th class="center">'.$langs->trans("Status").'</th>';
+	print '<th>'.$langs->trans("ErrorMessage").'</th>';
+	print '<th class="center">'.$langs->trans("Date").'</th>';
+	print '</tr>';
+	
+	if ($num > 0) {
+		$i = 0;
+		while ($i < $num) {
+			$obj = $db->fetch_object($resql);
+			
+			print '<tr class="oddeven">';
+			
+			// Session reference
+			print '<td>';
+			print '<a href="'.$_SERVER["PHP_SELF"].'?action=view_session&session_id='.$obj->fk_session.'&token='.newToken().'">';
+			print $obj->session_ref;
+			print '</a>';
+			print '<br><small class="opacitymedium">'.dol_trunc($obj->filename, 30).'</small>';
+			print '</td>';
+			
+			// Line number
+			print '<td class="center"><strong>'.$obj->line_number.'</strong></td>';
+			
+			// Import type
+			print '<td class="center">';
+			if ($obj->import_type == 'company') {
+				print '<span class="badge badge-info">🏢 '.$langs->trans("Company").'</span>';
+			} elseif ($obj->import_type == 'contact') {
+				print '<span class="badge badge-info">👤 '.$langs->trans("Contact").'</span>';
+			} else {
+				print '<span class="badge">'.$obj->import_type.'</span>';
+			}
+			print '</td>';
+			
+			// Status
+			print '<td class="center">';
+			if ($obj->status == 'error') {
+				print '<span class="badge badge-status8">❌ '.$langs->trans("Error").'</span>';
+			} elseif ($obj->status == 'warning') {
+				print '<span class="badge badge-status1">⚠️ Warning</span>';
+			} else {
+				print '<span class="badge">'.$obj->status.'</span>';
+			}
+			print '</td>';
+			
+			// Error message
+			print '<td>';
+			if (!empty($obj->error_message)) {
+				print '<span style="color: #d9534f;">'.dol_escape_htmltag($obj->error_message).'</span>';
+			} else {
+				print '<span class="opacitymedium">'.$langs->trans("NoErrorMessageRecorded").'</span>';
+			}
+			print '</td>';
+			
+			// Date
+			print '<td class="center">'.dol_print_date($db->jdate($obj->date_creation), 'dayhour').'</td>';
+			
+			print '</tr>';
+			
+			$i++;
+		}
+	} else {
+		print '<tr><td colspan="6" class="opacitymedium center">';
+		print '<span style="color: green;">✅ '.$langs->trans("NoErrorsOrWarnings").'</span>';
+		print '</td></tr>';
+	}
+	
+	print '</table>';
+	
+	if ($num >= 50) {
+		print '<div class="opacitymedium center" style="margin-top: 10px;">'.$langs->trans("Showing").' '.$num.' '.$langs->trans("MostRecentEntries").'</div>';
+	}
+	
+	$db->free($resql);
+}
+
+// =====================================
 // SECTION 3: Import History
 // =====================================
 print '<br><br>';
@@ -423,7 +530,32 @@ if ($action == 'view_session' && $session_id > 0) {
 		
 		print '<tr><td>'.$langs->trans("TotalLines").'</td><td>'.$session->total_lines.'</td></tr>';
 		print '<tr><td>'.$langs->trans("ProcessedLines").'</td><td>'.$session->processed_lines.'</td></tr>';
-		print '<tr><td>'.$langs->trans("SuccessLines").'</td><td><span style="color: green; font-weight: bold;">'.$session->success_lines.'</span></td></tr>';
+		print '<tr><td><strong>'.$langs->trans("SuccessLines").'</strong></td><td><strong><span style="color: green;">'.$session->success_lines.'</span></strong></td></tr>';
+		
+		// Detailed statistics breakdown
+		if (!empty($session->companies_created) || !empty($session->companies_updated) || !empty($session->contacts_created) || !empty($session->contacts_updated)) {
+			print '<tr><td colspan="2"><hr style="margin: 10px 0;"></td></tr>';
+			print '<tr><td colspan="2"><em style="color: #666;">'.$langs->trans("DetailedOperationsBreakdown").'</em></td></tr>';
+			
+			if (!empty($session->companies_created)) {
+				print '<tr><td style="padding-left: 20px;">↳ '.$langs->trans("CompaniesCreated").'</td><td><span class="badge badge-status4">'.$session->companies_created.'</span></td></tr>';
+			}
+			if (!empty($session->companies_updated)) {
+				print '<tr><td style="padding-left: 20px;">↳ '.$langs->trans("CompaniesUpdated").'</td><td><span class="badge badge-status1">'.$session->companies_updated.'</span></td></tr>';
+			}
+			if (!empty($session->contacts_created)) {
+				print '<tr><td style="padding-left: 20px;">↳ '.$langs->trans("ContactsCreated").'</td><td><span class="badge badge-status4">'.$session->contacts_created.'</span></td></tr>';
+			}
+			if (!empty($session->contacts_updated)) {
+				print '<tr><td style="padding-left: 20px;">↳ '.$langs->trans("ContactsUpdated").'</td><td><span class="badge badge-status1">'.$session->contacts_updated.'</span></td></tr>';
+			}
+			
+			// Show sum hint
+			$total_operations = $session->companies_created + $session->companies_updated + $session->contacts_created + $session->contacts_updated;
+			print '<tr><td style="padding-left: 20px;"><em style="font-size: 0.9em;">Σ '.$langs->trans("TotalOperations").'</em></td><td><em style="color: #999;">'.$total_operations.'</em></td></tr>';
+			print '<tr><td colspan="2"><hr style="margin: 10px 0;"></td></tr>';
+		}
+		
 		print '<tr><td>'.$langs->trans("ErrorLines").'</td><td><span style="color: red; font-weight: bold;">'.$session->error_lines.'</span></td></tr>';
 		
 		if ($session->processed_lines > 0) {
@@ -448,20 +580,215 @@ if ($action == 'view_session' && $session_id > 0) {
 		
 		print '</table>';
 		print '</div>';
-		
+
+		// =====================================
+		// Duplicate concentration check
+		// If a large number of lines all matched the SAME existing company/contact,
+		// this is almost always a broken field mapping (e.g. name column not mapped,
+		// so every line falls back to the same auto-filled placeholder name and gets
+		// matched as a "duplicate" of whatever record used that placeholder first),
+		// not real duplicate data.
+		// =====================================
+		$concentration_threshold = 5;
+		$concentration_warnings = array();
+
+		$sql = "SELECT company_id as target_id, COUNT(*) as cnt, s.nom as label";
+		$sql .= " FROM ".MAIN_DB_PREFIX."contactimport_logs as l";
+		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."societe as s ON s.rowid = l.company_id";
+		$sql .= " WHERE l.fk_session = ".((int) $session_id)." AND l.company_id IS NOT NULL";
+		$sql .= " GROUP BY l.company_id, s.nom";
+		$sql .= " ORDER BY cnt DESC";
+		$sql .= " LIMIT 3";
+		$resql = $db->query($sql);
+		if ($resql) {
+			while ($obj = $db->fetch_object($resql)) {
+				if ($obj->cnt >= $concentration_threshold) {
+					$concentration_warnings[] = array('type' => 'company', 'id' => $obj->target_id, 'label' => $obj->label, 'cnt' => $obj->cnt);
+				}
+			}
+			$db->free($resql);
+		}
+
+		$sql = "SELECT contact_id as target_id, COUNT(*) as cnt, CONCAT(c.lastname, ' ', c.firstname) as label";
+		$sql .= " FROM ".MAIN_DB_PREFIX."contactimport_logs as l";
+		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."socpeople as c ON c.rowid = l.contact_id";
+		$sql .= " WHERE l.fk_session = ".((int) $session_id)." AND l.contact_id IS NOT NULL";
+		$sql .= " GROUP BY l.contact_id, c.lastname, c.firstname";
+		$sql .= " ORDER BY cnt DESC";
+		$sql .= " LIMIT 3";
+		$resql = $db->query($sql);
+		if ($resql) {
+			while ($obj = $db->fetch_object($resql)) {
+				if ($obj->cnt >= $concentration_threshold) {
+					$concentration_warnings[] = array('type' => 'contact', 'id' => $obj->target_id, 'label' => $obj->label, 'cnt' => $obj->cnt);
+				}
+			}
+			$db->free($resql);
+		}
+
+		if (!empty($concentration_warnings)) {
+			print '<br>';
+			print '<div class="warning" style="border: 2px solid #d9534f; background: #fdf2f2; padding: 10px; border-radius: 4px;">';
+			print '<strong>⚠️ '.$langs->trans("MappingIssueSuspected").'</strong><br>';
+			print $langs->trans("MappingIssueSuspectedDetail").'<br>';
+			print '<ul style="margin-bottom: 0;">';
+			foreach ($concentration_warnings as $w) {
+				$url = ($w['type'] == 'company') ? DOL_URL_ROOT.'/societe/card.php?socid='.$w['id'] : DOL_URL_ROOT.'/contact/card.php?id='.$w['id'];
+				$typelabel = ($w['type'] == 'company') ? $langs->trans("Company") : $langs->trans("Contact");
+				print '<li>'.$w['cnt'].'x → '.$typelabel.' <a href="'.$url.'">'.dol_escape_htmltag($w['label']).' (ID '.$w['id'].')</a></li>';
+			}
+			print '</ul>';
+			print '</div>';
+		}
+
+		// =====================================
+		// Line-by-line detail log for this session
+		// =====================================
+		print '<br>';
+		print load_fiche_titre($langs->trans("DetailedLog"), '', '');
+
+		print '<form method="GET" action="'.$_SERVER["PHP_SELF"].'" class="marginbottomonly">';
+		print '<input type="hidden" name="action" value="view_session">';
+		print '<input type="hidden" name="session_id" value="'.$session_id.'">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print $langs->trans("FilterByStatus").': ';
+		print '<select name="log_status_filter" class="flat" onchange="this.form.submit()">';
+		$status_options = array('' => $langs->trans("All"), 'error' => $langs->trans("Error"), 'warning' => 'Warning', 'updated' => $langs->trans("Updated"), 'success' => $langs->trans("Success"));
+		foreach ($status_options as $key => $label) {
+			print '<option value="'.$key.'"'.($log_status_filter == $key ? ' selected' : '').'>'.$label.'</option>';
+		}
+		print '</select>';
+		print ' <input type="submit" class="button smallpaddingimp" value="'.$langs->trans("Filter").'">';
+		print '</form>';
+
+		$valid_statuses = array('error', 'warning', 'updated', 'success');
+		$sql = "SELECT l.rowid, l.line_number, l.import_type, l.company_id, l.contact_id, l.status, l.error_message, l.date_creation,";
+		$sql .= " s.nom as company_name, c.lastname as contact_lastname, c.firstname as contact_firstname";
+		$sql .= " FROM ".MAIN_DB_PREFIX."contactimport_logs as l";
+		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."societe as s ON s.rowid = l.company_id";
+		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."socpeople as c ON c.rowid = l.contact_id";
+		$sql .= " WHERE l.fk_session = ".((int) $session_id);
+		if (in_array($log_status_filter, $valid_statuses)) {
+			$sql .= " AND l.status = '".$db->escape($log_status_filter)."'";
+		}
+		$sql .= " ORDER BY l.line_number ASC, l.import_type ASC";
+		$sql .= " LIMIT ".((int) $log_limit)." OFFSET ".((int) ($log_page * $log_limit));
+
+		$resql = $db->query($sql);
+		if ($resql) {
+			$num = $db->num_rows($resql);
+
+			print '<table class="noborder centpercent">';
+			print '<tr class="liste_titre">';
+			print '<th class="center">'.$langs->trans("Line").'</th>';
+			print '<th class="center">'.$langs->trans("Type").'</th>';
+			print '<th class="center">'.$langs->trans("Status").'</th>';
+			print '<th>'.$langs->trans("Record").'</th>';
+			print '<th>'.$langs->trans("Details").'</th>';
+			print '</tr>';
+
+			if ($num > 0) {
+				while ($obj = $db->fetch_object($resql)) {
+					print '<tr class="oddeven">';
+					print '<td class="center">'.$obj->line_number.'</td>';
+
+					print '<td class="center">';
+					if ($obj->import_type == 'company') {
+						print '<span class="badge badge-info">🏢 '.$langs->trans("Company").'</span>';
+					} elseif ($obj->import_type == 'contact') {
+						print '<span class="badge badge-info">👤 '.$langs->trans("Contact").'</span>';
+					} else {
+						print '<span class="badge">'.dol_escape_htmltag($obj->import_type).'</span>';
+					}
+					print '</td>';
+
+					print '<td class="center">';
+					if ($obj->status == 'error') {
+						print '<span class="badge badge-status8">❌ '.$langs->trans("Error").'</span>';
+					} elseif ($obj->status == 'warning') {
+						print '<span class="badge badge-status1">⚠️ Warning</span>';
+					} elseif ($obj->status == 'updated') {
+						print '<span class="badge badge-status3">🔄 '.$langs->trans("Updated").'</span>';
+					} elseif ($obj->status == 'success') {
+						print '<span class="badge badge-status4">✅ '.$langs->trans("Success").'</span>';
+					} else {
+						print '<span class="badge">'.dol_escape_htmltag($obj->status).'</span>';
+					}
+					print '</td>';
+
+					print '<td>';
+					if ($obj->company_id > 0) {
+						print '<a href="'.DOL_URL_ROOT.'/societe/card.php?socid='.$obj->company_id.'">'.dol_escape_htmltag($obj->company_name ?: ('ID '.$obj->company_id)).'</a>';
+					}
+					if ($obj->contact_id > 0) {
+						if ($obj->company_id > 0) {
+							print '<br>';
+						}
+						print '<a href="'.DOL_URL_ROOT.'/contact/card.php?id='.$obj->contact_id.'">'.dol_escape_htmltag(trim($obj->contact_lastname.' '.$obj->contact_firstname) ?: ('ID '.$obj->contact_id)).'</a>';
+					}
+					if (empty($obj->company_id) && empty($obj->contact_id)) {
+						print '<span class="opacitymedium">-</span>';
+					}
+					print '</td>';
+
+					print '<td>';
+					if (!empty($obj->error_message)) {
+						print dol_escape_htmltag($obj->error_message);
+					} else {
+						print '<span class="opacitymedium">-</span>';
+					}
+					print '</td>';
+
+					print '</tr>';
+				}
+			} else {
+				print '<tr><td colspan="5" class="opacitymedium center">'.$langs->trans("NoLogEntriesFound").'</td></tr>';
+			}
+
+			print '</table>';
+			$db->free($resql);
+
+			// Simple pager
+			print '<div class="center" style="margin-top: 10px;">';
+			if ($log_page > 0) {
+				print '<a class="button" href="'.$_SERVER["PHP_SELF"].'?action=view_session&session_id='.$session_id.'&log_page='.($log_page - 1).'&log_status_filter='.urlencode($log_status_filter).'&token='.newToken().'">« '.$langs->trans("Previous").'</a> ';
+			}
+			if ($num >= $log_limit) {
+				print '<a class="button" href="'.$_SERVER["PHP_SELF"].'?action=view_session&session_id='.$session_id.'&log_page='.($log_page + 1).'&log_status_filter='.urlencode($log_status_filter).'&token='.newToken().'">'.$langs->trans("Next").' »</a>';
+			}
+			print '</div>';
+		}
+
 		print '<br>';
 		print '<div class="tabsAction">';
 		print '<a href="'.$_SERVER["PHP_SELF"].'?token='.newToken().'" class="butAction">'.$langs->trans("BackToList").'</a>';
 		print '</div>';
-		
+
 	} else {
 		setEventMessages($langs->trans("SessionNotFound"), null, 'errors');
 	}
 	
 } else {
+	// Precompute, for each session, whether many lines all matched the same existing
+	// company/contact (a strong sign of a broken field mapping rather than real duplicates)
+	$sessions_with_mapping_issue = array();
+	$sql = "SELECT fk_session, MAX(cnt) as max_cnt FROM (";
+	$sql .= " SELECT fk_session, company_id as target, COUNT(*) as cnt FROM ".MAIN_DB_PREFIX."contactimport_logs WHERE company_id IS NOT NULL GROUP BY fk_session, company_id";
+	$sql .= " UNION ALL";
+	$sql .= " SELECT fk_session, contact_id as target, COUNT(*) as cnt FROM ".MAIN_DB_PREFIX."contactimport_logs WHERE contact_id IS NOT NULL GROUP BY fk_session, contact_id";
+	$sql .= " ) t GROUP BY fk_session HAVING max_cnt >= 5";
+	$resql = $db->query($sql);
+	if ($resql) {
+		while ($obj = $db->fetch_object($resql)) {
+			$sessions_with_mapping_issue[$obj->fk_session] = $obj->max_cnt;
+		}
+		$db->free($resql);
+	}
+
 	// List all import sessions
 	$sql = "SELECT s.rowid, s.ref, s.filename, s.status, s.date_creation, s.date_import,";
-	$sql .= " s.total_lines, s.processed_lines, s.success_lines, s.error_lines";
+	$sql .= " s.total_lines, s.processed_lines, s.success_lines, s.error_lines,";
+	$sql .= " s.companies_created, s.companies_updated, s.contacts_created, s.contacts_updated";
 	$sql .= " FROM ".MAIN_DB_PREFIX."contactimport_sessions as s";
 	$sql .= " WHERE s.entity = ".$conf->entity;
 	$sql .= " ORDER BY s.date_creation DESC";
@@ -489,19 +816,49 @@ if ($action == 'view_session' && $session_id > 0) {
 				$obj = $db->fetch_object($resql);
 				
 				print '<tr class="oddeven">';
-				print '<td>'.$obj->ref.'</td>';
+				print '<td>'.$obj->ref;
+				if (isset($sessions_with_mapping_issue[$obj->rowid])) {
+					print ' <a href="'.$_SERVER["PHP_SELF"].'?action=view_session&session_id='.$obj->rowid.'&token='.newToken().'" title="'.dol_escape_htmltag($langs->trans("MappingIssueSuspectedDetail")).'">';
+					print '<span class="badge badge-status8">⚠️ '.$sessions_with_mapping_issue[$obj->rowid].'x '.$langs->trans("SameRecord").'</span>';
+					print '</a>';
+				}
+				print '</td>';
 				print '<td><strong>'.dol_escape_htmltag($obj->filename).'</strong></td>';
 				print '<td class="center">';
-				
+
 				// Status badge
 				$session_tmp = new ContactImportSession($db);
 				$session_tmp->status = $obj->status;
 				print $session_tmp->getLibStatut(5);
-				
+
 				print '</td>';
 				print '<td class="center">'.dol_print_date($db->jdate($obj->date_creation), 'dayhour').'</td>';
 				print '<td class="right">'.$obj->processed_lines.' / '.$obj->total_lines.'</td>';
-				print '<td class="right"><span style="color: green;">'.$obj->success_lines.'</span></td>';
+				
+				// Success column with detailed breakdown tooltip
+				print '<td class="right">';
+				$details = array();
+				if (!empty($obj->companies_created)) $details[] = $langs->trans("CompaniesCreated").': '.$obj->companies_created;
+				if (!empty($obj->companies_updated)) $details[] = $langs->trans("CompaniesUpdated").': '.$obj->companies_updated;
+				if (!empty($obj->contacts_created)) $details[] = $langs->trans("ContactsCreated").': '.$obj->contacts_created;
+				if (!empty($obj->contacts_updated)) $details[] = $langs->trans("ContactsUpdated").': '.$obj->contacts_updated;
+				
+				$tooltip = !empty($details) ? implode("\n", $details) : $langs->trans("SuccessLines");
+				print '<span style="color: green;" title="'.dol_escape_htmltag($tooltip).'">'.$obj->success_lines.'</span>';
+				
+				// Show detailed breakdown as small text if available
+				if (!empty($details)) {
+					print '<br><small style="color: #666;">';
+					$short_details = array();
+					if (!empty($obj->companies_created)) $short_details[] = 'C+'.$obj->companies_created;
+					if (!empty($obj->companies_updated)) $short_details[] = 'C~'.$obj->companies_updated;
+					if (!empty($obj->contacts_created)) $short_details[] = 'K+'.$obj->contacts_created;
+					if (!empty($obj->contacts_updated)) $short_details[] = 'K~'.$obj->contacts_updated;
+					print implode(' | ', $short_details);
+					print '</small>';
+				}
+				print '</td>';
+				
 				print '<td class="right"><span style="color: red;">'.$obj->error_lines.'</span></td>';
 				print '<td class="center">';
 				print '<a href="'.$_SERVER["PHP_SELF"].'?action=view_session&session_id='.$obj->rowid.'&token='.newToken().'" title="'.$langs->trans("View").'">';

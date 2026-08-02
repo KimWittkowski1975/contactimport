@@ -12,6 +12,26 @@ ModuleContactimportDesc = Module for importing company and contact data from CSV
 # Setup
 ContactImportSetup = Contact Import Configuration
 ContactImportSetupDescription = Configuration of the Contact Import module
+ImportWorkflow = Import Workflow
+UploadCSVFile = Upload CSV File
+UploadCSVFileDesc = Upload your CSV file with contact data
+ConfigureMapping = Configure Mapping
+ConfigureMappingDesc = Map CSV columns to Dolibarr fields (Companies + Contacts)
+RunImport = Run Import
+RunImportDesc = Start the import and review the results
+StartNewImport = Start New Import
+ManageTemplates = Manage Templates
+TestFTPImport = Test FTP Import
+TestImportSuccessful = Test import successful
+FilesDownloaded = %s file(s) downloaded
+FilesImported = file(s) imported
+ImportStatistics = Import Statistics
+Successfully = Successfully
+ErrorFTPNotEnabled = FTP is not enabled. Please enable FTP in FTP configuration.
+ErrorNoDefaultTemplate = No default template found. Please create a default template.
+NoFilesFoundOnFTP = No files found on FTP server.
+NoFilesToImport = No files to import found.
+CreateDefaultTemplateFirst = Please create a default template first
 
 # Configuration
 CONTACTIMPORT_DEFAULT_CSV_SEPARATOR = Default CSV Separator
@@ -33,6 +53,7 @@ CONTACTIMPORT_LOG_LEVELTooltip = Detail level of import logging
 ContactImport = Contact Import
 CSVUpload = CSV Upload
 MappingInterface = Mapping Interface
+MappingTemplates = Mapping Templates
 ImportHistory = Import History
 
 # Upload
@@ -54,11 +75,24 @@ Tab = Tab
 DoubleQuote = Double Quote
 SingleQuote = Single Quote
 
+# Extrafields
+LastOrderDate = Last Order Date
+LastOrderDateHelp = Date of the last order - automatically sets customer status (empty = Prospect, filled = Customer)
+Comma = Comma
+Pipe = Pipe
+Tab = Tab
+DoubleQuote = Double Quote
+SingleQuote = Single Quote
+
 # Mapping
 MappingInterface = Mapping Interface
 CSVPreview = CSV Preview
 Column = Column
 DolibarrField = Dolibarr Field
+DolibarrCompanyField = Dolibarr Company Field
+DolibarrContactField = Dolibarr Contact Field
+SelectCSVColumn = Select CSV Column
+SampleData = Sample Data
 CSVColumn = CSV Column
 ImportSettings = Import Settings
 ImportMode = Import Mode
@@ -81,6 +115,19 @@ Required = Required
 CompanyFieldMapping = Company Field Mapping
 ContactFieldMapping = Contact Field Mapping
 SaveMapping = Save Mapping
+AlwaysImportBothCompanyAndContact = Always imports both: Company and linked Contact
+EachCSVRowCreatesCompanyAndLinkedContact = Each CSV row creates a Company and a linked Contact
+Instructions = Instructions
+MapCSVColumnsToBothCompanyAndContact = Map each CSV column to both Company and Contact fields
+SameCSVColumnCanBeMappedToBothTypes = The same CSV column can be used for BOTH Company AND Contact simultaneously
+RequiredCompanyName = At least one company name must be mapped
+RequiredContactLastname = At least one contact lastname must be mapped
+CompanyMapping = Company Mapping
+ContactMapping = Contact Mapping
+MapToCompanyField = Map to Company Field
+MapToContactField = Map to Contact Field
+SampleData = Sample Data
+CSVColumnName = CSV Column Name
 
 # Status
 Draft = Draft
@@ -89,6 +136,7 @@ Mapped = Mapped
 Processing = Processing
 Completed = Completed
 Error = Error
+RolledBack = Rolled back
 Unknown = Unknown
 
 # Actions
@@ -199,6 +247,9 @@ FTPConnectionSuccessful = FTP connection successful
 SFTPConnectionSuccessful = SFTP connection successful
 FTPConnectionFailed = FTP connection failed
 SFTPConnectionFailed = SFTP connection failed
+ShowFilesOnServer = Show files on server
+ShowFilesOnServerHelp = This list only shows the files currently on the FTP/SFTP server. Nothing is downloaded or imported.
+LatestFile = Latest file
 
 # Pseudo Cron
 CONTACTIMPORT_PSEUDO_CRON = Enable Pseudo-Cron (for users without Cron access)
@@ -206,6 +257,18 @@ CONTACTIMPORT_PSEUDO_CRONTooltip = If enabled, import will run automatically on 
 DownloadAndImport = Download and Import
 FilesDownloaded = %s file(s) downloaded
 FilesImported = %s file(s) imported
+PreviewFtpImport = Preview
+FtpImportPreviewIntro = The following file was only downloaded for preview. NO data has been created or changed in Dolibarr yet.
+FTPPreviewSessionLabel = FTP preview: %s
+FTPPreviewSessionDescription = Automatically downloaded for preview, not imported yet
+CompaniesToCreate = New companies
+ContactsToCreate = New contacts
+PotentialErrors = Potential errors
+ConfirmImportNow = Import now
+CancelPreview = Cancel (import nothing)
+PreviewCancelled = Preview cancelled - no data was imported.
+ErrorCreatingPreviewSession = Error creating preview session
+ImportSummaryLine = Import completed: %s new companies, %s updated companies, %s new contacts, %s updated contacts, %s errors
 NoFilesFound = No files found
 FTPConfigurationIncomplete = FTP configuration incomplete
 NoDefaultTemplateFound = No default template found
@@ -251,10 +314,46 @@ CompletedImports = Completed Imports
 FailedImports = Failed Imports
 TotalLinesProcessed = Total Lines Processed
 SuccessfulLines = Successful Lines
+TestImportResults = Test Import Results
+Processed = Processed
+Success = Success
+Errors = Errors
+Companies = Companies
+Contacts = Contacts
+ViewDetails = View Details
+Summary = Summary
+CompaniesCreated = Companies Created
+CompaniesUpdated = Companies Updated
+ContactsCreated = Contacts Created
+ContactsUpdated = Contacts Updated
+ErrorsOccurred = Errors Occurred
+Created = Created
+Updated = Updated
+ViewImportHistory = View Import History
+RecentErrorsAndWarnings = Recent Errors and Warnings
+ErrorMessage = Error Message
+NoErrorMessageRecorded = (No error message recorded)
+NoErrorsOrWarnings = No errors or warnings found
+MostRecentEntries = most recent entries
+Type = Type
+Line = Line
+Session = Session
+Company = Company
+Contact = Contact
 SuccessRate = Success Rate
 ImportHistory = Import History
 NoImportsFound = No imports found
 Showing50MostRecent = Showing 50 most recent entries
+
+# Smart Import Messages (v1.3.10)
+InfoCompanyNameGenerated = Info: Company name generated from contact name (Lastname, Firstname)
+InfoCompanyNameFromLastname = Info: Company name copied from contact lastname
+InfoCompanyNameFromFirstname = Info: Company name copied from contact firstname
+InfoContactLastnameFromCompany = Info: Contact lastname copied from company name
+WarningCompanyNameAutoFilled = Warning: Company name was empty - auto-filled with "XX-AUTO"
+WarningContactLastnameAutoFilled = Warning: Contact lastname was empty - auto-filled with "XX-AUTO"
+TemplateSetAsDefault = Template set as default - all other defaults have been reset
+
 BackToList = Back to List
 DateImport = Import Date
 Duration = Duration
@@ -308,3 +407,35 @@ About = About
 ContactImportAbout = About Contact Import
 ChangeLog = Change Log
 ModuleNumber = Module Number
+
+# Extra Fields for Companies (v1.2.1)
+LastOrderDate = Last Order (Date)
+LastOrderDateHelp = Date of the customer's last order. Automatic status change: Empty = Prospect, Date present = Customer
+LastOrderColumn = Column "Last Order (Date)"
+LastOrderColumnHelp = CSV column containing the date of the last order
+# Detailed Statistics (v1.3.12)
+DetailedStatistics = Detailed Statistics
+CompaniesCreated = Companies Created
+CompaniesUpdated = Companies Updated
+ContactsCreated = Contacts Created
+ContactsUpdated = Contacts Updated
+DetailedOperationsBreakdown = Detailed Operations Breakdown (operations, not lines)
+TotalOperations = Total Operations
+
+# Rollback
+RollbackImportSession = Roll back import
+ConfirmRollbackImportSession = %s newly created companies/contacts from this import will be permanently deleted. This action cannot be undone.
+RollbackUpdatedRecordsWarning = Note: %s already existing companies/contacts that were only updated by this import will remain unchanged and cannot be automatically reverted here.
+RollbackResultMessage = Rollback completed: %s companies and %s contacts were deleted.
+RollbackPartialFailures = %s records could not be deleted (e.g. because they are already linked to other data such as orders or invoices).
+RollbackNotPossible = Rollback is not possible for this session (session is not completed or has already been rolled back).
+
+# Detailed per-line log & mapping-issue detection (2026-08-02)
+DetailedLog = Detailed log (line by line)
+FilterByStatus = Filter by status
+Record = Record
+Details = Details
+NoLogEntriesFound = No log entries found
+SameRecord = x same record
+MappingIssueSuspected = Mapping issue suspected
+MappingIssueSuspectedDetail = An unusually large number of lines in this session all matched the SAME already-existing record. This is usually NOT a real duplicate, but a sign that the field mapping (e.g. company name/lastname) is not configured correctly, causing almost every line to fall back to the same auto-filled placeholder name.

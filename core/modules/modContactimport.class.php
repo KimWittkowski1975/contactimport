@@ -66,11 +66,7 @@ class modContactimport extends DolibarrModules
 		$this->editor_url = 'https://';
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.0.7';
-
-		// Key used in llx_const table to save module status enabled/disabled
-		$this->const_name = 'MAIN_MODULE_' . strtoupper($this->name);
-
+		$this->version = '1.4.0';
 		// Name of image file used for this module.
 		$this->picto = 'contactimport@contactimport';
 
@@ -136,6 +132,7 @@ class modContactimport extends DolibarrModules
 			2 => array('CONTACTIMPORT_DEFAULT_CSV_ENCLOSURE', 'chaine', '"', 'Default CSV enclosure', 1),
 			3 => array('CONTACTIMPORT_MAX_FILE_SIZE', 'chaine', '10485760', 'Maximum file size for CSV upload (10MB)', 1),
 			4 => array('CONTACTIMPORT_TEMP_DIR', 'chaine', DOL_DATA_ROOT.'/contactimport/temp', 'Temporary directory for CSV files', 1),
+			5 => array('CONTACTIMPORT_DUPLICATE_CHECK', 'chaine', '1', 'Enable duplicate check (prevent re-importing existing data)', 1),
 		);
 
 		if (!isset($conf->contactimport) || !isset($conf->contactimport->enabled)) {
@@ -153,7 +150,22 @@ class modContactimport extends DolibarrModules
 		$this->boxes = array();
 
 		// Cronjobs
-		$this->cronjobs = array();
+		$this->cronjobs = array(
+			0 => array(
+				'label' => 'ContactImportAutoImport',
+				'jobtype' => 'method',
+				'class' => '/contactimport/class/contactimportftp.class.php',
+				'objectname' => 'ContactImportFTP',
+				'method' => 'cronAutoImport',
+				'parameters' => '',
+				'comment' => 'Auto-import contacts from FTP server',
+				'frequency' => 1,
+				'unitfrequency' => 3600,
+				'status' => 0,
+				'test' => '$conf->contactimport->enabled',
+				'priority' => 50,
+			),
+		);
 
 		// Permissions provided by this module
 		$this->rights = array();
@@ -195,6 +207,7 @@ class modContactimport extends DolibarrModules
 			'prefix' => '',
 			'mainmenu' => 'tools',
 			'leftmenu' => 'contactimport',
+			'url' => '/custom/contactimport/import.php',
 			'langs' => 'contactimport@contactimport',
 			'position' => 1100 + $r,
 			'enabled' => '$conf->contactimport->enabled',
@@ -210,7 +223,7 @@ class modContactimport extends DolibarrModules
 			'titre' => 'CSVUpload',
 			'mainmenu' => 'tools',
 			'leftmenu' => 'contactimport_upload',
-			'url' => '/contactimport/upload.php',
+			'url' => '/custom/contactimport/upload.php',
 			'langs' => 'contactimport@contactimport',
 			'position' => 1100 + $r,
 			'enabled' => '$conf->contactimport->enabled',
@@ -219,14 +232,14 @@ class modContactimport extends DolibarrModules
 			'user' => 2,
 		);
 
-		// Mapping submenu
+		// Mapping Templates submenu (reusable mappings)
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=tools,fk_leftmenu=contactimport',
 			'type' => 'left',
-			'titre' => 'MappingInterface',
+			'titre' => 'MappingTemplates',
 			'mainmenu' => 'tools',
-			'leftmenu' => 'contactimport_mapping',
-			'url' => '/contactimport/mapping.php',
+			'leftmenu' => 'contactimport_templates',
+			'url' => '/custom/contactimport/admin/templates.php',
 			'langs' => 'contactimport@contactimport',
 			'position' => 1100 + $r,
 			'enabled' => '$conf->contactimport->enabled',
@@ -242,7 +255,7 @@ class modContactimport extends DolibarrModules
 			'titre' => 'ImportHistory',
 			'mainmenu' => 'tools',
 			'leftmenu' => 'contactimport_history',
-			'url' => '/contactimport/import.php',
+			'url' => '/custom/contactimport/import.php',
 			'langs' => 'contactimport@contactimport',
 			'position' => 1100 + $r,
 			'enabled' => '$conf->contactimport->enabled',

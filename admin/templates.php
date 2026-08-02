@@ -126,8 +126,8 @@ if ($action == 'save' && !GETPOST('cancel', 'alpha')) {
 	foreach ($company_fields as $field_key => $field_label) {
 		if (empty($field_key)) continue;
 		$post_key = 'company_'.$field_key;
-		$csv_column = GETPOST($post_key, 'alpha');
-		if (!empty($csv_column)) {
+		$csv_column = GETPOST($post_key, 'int');
+		if ($csv_column !== '' && $csv_column >= 0) {
 			// Store as CSV_column => dolibarr_field
 			$company_mapping[$csv_column] = $field_key;
 		}
@@ -138,8 +138,8 @@ if ($action == 'save' && !GETPOST('cancel', 'alpha')) {
 	foreach ($contact_fields as $field_key => $field_label) {
 		if (empty($field_key)) continue;
 		$post_key = 'contact_'.$field_key;
-		$csv_column = GETPOST($post_key, 'alpha');
-		if (!empty($csv_column)) {
+		$csv_column = GETPOST($post_key, 'int');
+		if ($csv_column !== '' && $csv_column >= 0) {
 			// Store as CSV_column => dolibarr_field
 			$contact_mapping[$csv_column] = $field_key;
 		}
@@ -230,6 +230,11 @@ if ($action == 'confirm_delete' && GETPOST('confirm', 'alpha') == 'yes') {
 
 // Manual FTP download and import
 if ($action == 'ftp_download') {
+	// Increase execution time limit for FTP download and import process
+	// This can take a long time with large files or many records
+	@set_time_limit(300); // 5 minutes
+	ini_set('max_execution_time', '300');
+	
 	require_once '../class/contactimportftp.class.php';
 	
 	$ftp = new ContactImportFTP($db);
@@ -279,6 +284,123 @@ if ($action == 'ftp_download') {
 	} else {
 		setEventMessages($langs->trans("FTPDownloadFailed").' - '.$ftp->error, null, 'errors');
 	}
+	$action = '';
+}
+
+// Download the latest file from FTP/SFTP and show a dry-run preview, WITHOUT writing anything to the database yet
+$preview_session_id = 0;
+$preview_data = null;
+$preview_session = null;
+if ($action == 'ftp_preview') {
+	@set_time_limit(300);
+	ini_set('max_execution_time', '300');
+
+	require_once '../class/contactimportftp.class.php';
+
+	$template_for_preview = new ContactImportTemplate($db);
+	$default_template_id = $template_for_preview->getDefaultTemplate();
+
+	if (!$default_template_id) {
+		setEventMessages($langs->trans("NoDefaultTemplateFound"), null, 'errors');
+	} else {
+		$ftp = new ContactImportFTP($db);
+		$result = $ftp->downloadFiles();
+
+		if ($result > 0 && !empty($ftp->lastDownloadedFilePath) && is_file($ftp->lastDownloadedFilePath)) {
+			$template_for_preview->fetch($default_template_id);
+
+			$session = new ContactImportSession($db);
+			$session->ref = 'PREVIEW_'.dol_now();
+			$session->label = $langs->trans("FTPPreviewSessionLabel", $ftp->lastDownloadedFilename);
+			$session->description = $langs->trans("FTPPreviewSessionDescription");
+			$session->filename = $ftp->lastDownloadedFilename;
+			$session->file_path = $ftp->lastDownloadedFilePath;
+			$session->file_size = filesize($ftp->lastDownloadedFilePath);
+			$session->csv_separator = $template_for_preview->csv_separator;
+			$session->csv_enclosure = $template_for_preview->csv_enclosure;
+			$session->has_header = $template_for_preview->has_header;
+			$session->total_lines = max(0, count(file($ftp->lastDownloadedFilePath)) - ($template_for_preview->has_header ? 1 : 0));
+			$session->status = 2; // Mapped
+			$session->mapping_config = $template_for_preview->mapping_config;
+
+			$new_session_id = $session->create($user);
+
+			if ($new_session_id > 0) {
+				$session->fetch($new_session_id);
+				$processor = new ContactImportProcessor($db);
+				// generatePreview() only reads the CSV and runs SELECT queries - it never writes to the database
+				$preview_data = $processor->generatePreview($session, $session->total_lines);
+				$preview_session_id = $new_session_id;
+				$preview_session = $session;
+				$action = 'ftp_preview_result';
+			} else {
+				setEventMessages($langs->trans("ErrorCreatingPreviewSession"), null, 'errors');
+				$action = '';
+			}
+		} elseif ($result == 0) {
+			setEventMessages($langs->trans("NoFilesFound"), null, 'warnings');
+			$action = '';
+		} else {
+			setEventMessages($langs->trans("FTPDownloadFailed").' - '.$ftp->error, null, 'errors');
+			$action = '';
+		}
+	}
+}
+
+// User confirmed the preview - run the real import now
+if ($action == 'ftp_confirm_import') {
+	@set_time_limit(300);
+	ini_set('max_execution_time', '300');
+
+	$session_id = GETPOST('session_id', 'int');
+	$session = new ContactImportSession($db);
+
+	if ($session_id > 0 && $session->fetch($session_id) > 0) {
+		$processor = new ContactImportProcessor($db);
+		$import_result = $processor->processImport($session, $user);
+
+		if (!empty($import_result['success'])) {
+			// Single, clear summary instead of scattered messages
+			$summary = $langs->trans("ImportSummaryLine",
+				$import_result['companies_created'],
+				$import_result['companies_updated'],
+				$import_result['contacts_created'],
+				$import_result['contacts_updated'],
+				$import_result['errors']
+			);
+			if ($import_result['errors'] > 0) {
+				setEventMessages($summary, null, 'warnings');
+			} else {
+				setEventMessages($summary, null, 'mesgs');
+			}
+
+			// Delete the local file if configured to do so after import
+			if (getDolGlobalString('CONTACTIMPORT_FTP_DELETE_AFTER_IMPORT') && !empty($session->file_path) && is_file($session->file_path)) {
+				@unlink($session->file_path);
+			}
+		} else {
+			setEventMessages($langs->trans("ImportFailed").' - '.implode(', ', (array) ($import_result['messages'] ?? array())), null, 'errors');
+		}
+	} else {
+		setEventMessages($langs->trans("ErrorSessionNotFound"), null, 'errors');
+	}
+
+	$action = '';
+}
+
+// User cancelled the preview - nothing was written to the database, just clean up the downloaded file and session
+if ($action == 'ftp_preview_cancel') {
+	$session_id = GETPOST('session_id', 'int');
+	$session = new ContactImportSession($db);
+
+	if ($session_id > 0 && $session->fetch($session_id) > 0) {
+		if (!empty($session->file_path) && is_file($session->file_path)) {
+			@unlink($session->file_path);
+		}
+		$session->delete($user);
+		setEventMessages($langs->trans("PreviewCancelled"), null, 'mesgs');
+	}
+
 	$action = '';
 }
 
@@ -620,107 +742,127 @@ if ($action == 'create' || $action == 'edit' || ($template_id > 0 && $action != 
 			}
 		}
 		
-		// Two column layout (same as mapping.php)
-		?>
-		<style>
-		.mapping-container { display: flex; gap: 30px; margin: 20px 0; }
-		.mapping-column { flex: 1; }
-		.mapping-column h3 { margin-top: 0; padding: 10px; background-color: #f5f5f5; border-radius: 3px; }
-		.mapping-list { list-style: none; padding: 0; margin: 0; }
-		.mapping-item { display: flex; align-items: center; padding: 10px; border: 1px solid #ddd; margin-bottom: 5px; background-color: #fafafa; border-radius: 3px; }
-		.mapping-item:hover { background-color: #f0f0f0; }
-		.mapping-item.required { background-color: #fff5f5; border-color: #d00; border-width: 2px; }
-		.mapping-item.required .mapping-select strong { color: #d00; }
-		.mapping-item.required .mapping-select strong::after { content: " *"; color: #d00; font-weight: bold; }
-		.mapping-csv-header { font-weight: bold; flex: 0 0 35%; padding-right: 15px; word-break: break-word; color: #0066cc; }
-		.mapping-select { flex: 1; }
-		.mapping-select select { width: 100%; padding: 5px; border: 1px solid #ccc; border-radius: 3px; }
-		.required-info { background-color: #fff5f5; border-left: 4px solid #d00; padding: 10px; margin: 10px 0; }
-		.required-info strong { color: #d00; }
-		</style>
-		<?php
+		// NEW UI: Dolibarr-field-centric tables (like mapping.php v1.3.1)
 		
-		print '<div class="required-info">';
-		print '<strong>'.$langs->trans("RequiredFields").':</strong> ';
-		if ($import_mode === 'both') {
-			print $langs->trans("CompanyNameAndContactLastname");
-		} elseif ($import_mode === 'contact_only') {
-			print $langs->trans("CompanyNameAlwaysRequiredForContacts");
-		} elseif ($import_mode === 'company_only') {
-			print $langs->trans("CompanyNameRequired");
-		}
-		print '</div>';
-		
-		print '<div class="fichecenter">';
-		print '<div class="mapping-container">';
-		
-		// Left column - CSV Headers
-		print '<div class="mapping-column">';
-		print '<h3>'.$langs->trans("CSVColumns").'</h3>';
-		print '<p style="color: #666; font-size: 0.9em;">'.$langs->trans("TotalLines").': <strong>'.count($csv_headers).'</strong></p>';
-		print '<ul class="mapping-list">';
-		
+		// Build CSV column dropdown options
+		$csv_dropdown_options = array('' => $langs->trans("None"));
 		foreach ($csv_headers as $idx => $header) {
-			print '<li class="mapping-item">';
-			print '<div class="mapping-csv-header">'.dol_escape_htmltag($header).'<br><small style="color: #999;">'.$langs->trans("Column").' '.($idx + 1).'</small></div>';
-			print '</li>';
+			$csv_dropdown_options[$idx] = $langs->trans("Column").' '.($idx + 1).': '.dol_trunc($header, 30);
 		}
 		
-		print '</ul>';
+		// Read sample data once for performance
+		$sample_line = array();
+		if (file_exists($_SESSION['contactimport_sample_file'])) {
+			$fp = fopen($_SESSION['contactimport_sample_file'], 'r');
+			if ($has_header_val) fgetcsv($fp, 0, $csv_sep_display, $csv_enc_display); // Skip header
+			$sample_line = fgetcsv($fp, 0, $csv_sep_display, $csv_enc_display);
+			fclose($fp);
+		}
+		
+		// COMPANY MAPPING TABLE
+		print '<div style="background-color: #e8f4f8; padding: 10px; margin: 20px 0 10px 0; border-left: 4px solid #4e9fdd;">';
+		print '<strong>🏢 '.$langs->trans("CompanyMapping").'</strong>';
 		print '</div>';
 		
-		// Right column - Dolibarr Fields with dropdowns
-		print '<div class="mapping-column">';
-		print '<h3>'.$langs->trans("DolibarrFields").'</h3>';
-		print '<p style="color: #666; font-size: 0.9em;">'.$langs->trans("SelectField").'</p>';
+		print '<table class="noborder centpercent">';
+		print '<tr class="liste_titre">';
+		print '<th class="left" width="40%">'.$langs->trans("DolibarrCompanyField").'</th>';
+		print '<th class="left" width="40%">'.$langs->trans("SelectCSVColumn").'</th>';
+		print '<th class="center" width="20%">'.$langs->trans("SampleData").'</th>';
+		print '</tr>';
 		
-		print '<ul class="mapping-list">';
-		
-		foreach ($dolibarr_fields as $field) {
-			$field_key = $field['key'];
-			$field_label = $field['label'];
-			$is_required = isset($field['required']) && $field['required'];
+		foreach ($company_fields as $field_key => $field_label) {
+			if (empty($field_key)) continue;
 			
-			// Determine selected value based on existing mapping
-			$selected_column = '';
-			if ($field['type'] === 'company') {
-				$company_key = str_replace('company_', '', $field_key);
-				if (isset($mapping['company'])) {
-					// Find which CSV column maps to this Dolibarr field
-					foreach ($mapping['company'] as $csv_idx => $dol_field) {
-						if ($dol_field === $company_key) {
-							$selected_column = $csv_idx;
-							break;
-						}
-					}
-				}
-			} else {
-				$contact_key = str_replace('contact_', '', $field_key);
-				if (isset($mapping['contact'])) {
-					// Find which CSV column maps to this Dolibarr field
-					foreach ($mapping['contact'] as $csv_idx => $dol_field) {
-						if ($dol_field === $contact_key) {
-							$selected_column = $csv_idx;
-							break;
-						}
+			print '<tr class="oddeven">';
+			
+			// Dolibarr Field
+			print '<td><strong>'.$field_label.'</strong>';
+			if ($field_key == 'nom') {
+				print ' <span class="badge badge-status4">'.$langs->trans("Required").'</span>';
+			}
+			print '</td>';
+			
+			// CSV Column Dropdown
+			print '<td>';
+			$selected_csv_column = '';
+			if (!empty($mapping['company'])) {
+				foreach ($mapping['company'] as $csv_idx => $mapped_field) {
+					if ($mapped_field === $field_key) {
+						$selected_csv_column = $csv_idx;
+						break;
 					}
 				}
 			}
+			print $form->selectarray('company_'.$field_key, $csv_dropdown_options, $selected_csv_column, 0, 0, 0, '', 1, 0, 0, '', 'minwidth300');
+			print '</td>';
 			
-			$item_class = $is_required ? 'mapping-item required' : 'mapping-item';
-			print '<li class="'.$item_class.'" data-field="'.$field_key.'">';
-			print '<div class="mapping-select">';
-			print '<strong style="display: block; margin-bottom: 5px; color: #333;">'.dol_escape_htmltag($field_label).'</strong>';
-			print $form->selectarray($field_key, $csv_column_options, $selected_column, 0, 0, 0, '', 1);
-			print '</div>';
-			print '</li>';
+			// Sample Data
+			print '<td class="center" style="font-size: 0.85em; color: #666;">';
+			if ($selected_csv_column !== '' && !empty($sample_line[$selected_csv_column])) {
+				print dol_escape_htmltag(dol_trunc($sample_line[$selected_csv_column], 30));
+			} else {
+				print '<span class="opacitymedium">-</span>';
+			}
+			print '</td>';
+			
+			print '</tr>';
 		}
 		
-		print '</ul>';
+		print '</table>';
+		print '<br>';
+		
+		// CONTACT MAPPING TABLE
+		print '<div style="background-color: #f8f4e8; padding: 10px; margin: 20px 0 10px 0; border-left: 4px solid #dd9f4e;">';
+		print '<strong>👤 '.$langs->trans("ContactMapping").'</strong>';
 		print '</div>';
 		
-		print '</div>';
-		print '</div>';
+		print '<table class="noborder centpercent">';
+		print '<tr class="liste_titre">';
+		print '<th class="left" width="40%">'.$langs->trans("DolibarrContactField").'</th>';
+		print '<th class="left" width="40%">'.$langs->trans("SelectCSVColumn").'</th>';
+		print '<th class="center" width="20%">'.$langs->trans("SampleData").'</th>';
+		print '</tr>';
+		
+		foreach ($contact_fields as $field_key => $field_label) {
+			if (empty($field_key)) continue;
+			
+			print '<tr class="oddeven">';
+			
+			// Dolibarr Field
+			print '<td><strong>'.$field_label.'</strong>';
+			if ($field_key == 'lastname') {
+				print ' <span class="badge badge-status4">'.$langs->trans("Required").'</span>';
+			}
+			print '</td>';
+			
+			// CSV Column Dropdown
+			print '<td>';
+			$selected_csv_column = '';
+			if (!empty($mapping['contact'])) {
+				foreach ($mapping['contact'] as $csv_idx => $mapped_field) {
+					if ($mapped_field === $field_key) {
+						$selected_csv_column = $csv_idx;
+						break;
+					}
+				}
+			}
+			print $form->selectarray('contact_'.$field_key, $csv_dropdown_options, $selected_csv_column, 0, 0, 0, '', 1, 0, 0, '', 'minwidth300');
+			print '</td>';
+			
+			// Sample Data
+			print '<td class="center" style="font-size: 0.85em; color: #666;">';
+			if ($selected_csv_column !== '' && !empty($sample_line[$selected_csv_column])) {
+				print dol_escape_htmltag(dol_trunc($sample_line[$selected_csv_column], 30));
+			} else {
+				print '<span class="opacitymedium">-</span>';
+			}
+			print '</td>';
+			
+			print '</tr>';
+		}
+		
+		print '</table>';
 	} else {
 		print '<div class="warning">'.$langs->trans("NoSampleCSVFileFound").'</div>';
 	}
@@ -762,7 +904,12 @@ if ($action == 'create' || $action == 'edit' || ($template_id > 0 && $action != 
 				
 				print '<tr class="oddeven">';
 				print '<td>'.$obj->ref.'</td>';
-				print '<td>'.$obj->label.'</td>';
+				print '<td>'.$obj->label;
+				// Add badge for default template
+				if ($obj->is_default) {
+					print ' <span class="badge badge-status4" style="background-color: #25a864; color: white; margin-left: 8px;">'.$langs->trans("Default").'</span>';
+				}
+				print '</td>';
 				print '<td>'.dol_trunc($obj->description, 100).'</td>';
 				print '<td class="center">'.yn($obj->is_default).'</td>';
 				print '<td class="center">'.dol_print_date($db->jdate($obj->date_creation), 'day').'</td>';
@@ -804,9 +951,65 @@ if ($action == 'create' || $action == 'edit' || ($template_id > 0 && $action != 
 	
 	// FTP Download & Import button
 	if (getDolGlobalString('CONTACTIMPORT_FTP_ENABLED')) {
-		print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?action=ftp_download&token='.newToken().'">'.$langs->trans("DownloadAndImport").'</a>';
+		$ftp_host = getDolGlobalString('CONTACTIMPORT_FTP_HOST');
+		$ftp_user = getDolGlobalString('CONTACTIMPORT_FTP_USER');
+		
+		// Show button as disabled if FTP not configured (with helpful tooltip)
+		if (!empty($ftp_host) && !empty($ftp_user)) {
+			print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?action=ftp_preview&token='.newToken().'">'.$langs->trans("PreviewFtpImport").'</a>';
+		} else {
+			print '<a class="butActionRefused" href="#" title="'.$langs->trans("FTPConfigurationIncomplete").'">'.$langs->trans("PreviewFtpImport").'</a>';
+		}
 	}
 	print '</div>';
+
+	// Dry-run preview result: nothing has been written to the database yet, the user must confirm
+	if ($action == 'ftp_preview_result' && $preview_session_id > 0 && is_array($preview_data)) {
+		print '<br>';
+		print '<div class="info">'.$langs->trans("FtpImportPreviewIntro").'</div>';
+
+		print '<table class="noborder centpercent">';
+		print '<tr class="liste_titre"><th>'.$langs->trans("Filename").'</th><th class="right">'.$langs->trans("Size").'</th><th class="right">'.$langs->trans("TotalLines").'</th></tr>';
+		print '<tr class="oddeven">';
+		print '<td>'.dol_escape_htmltag($preview_session->filename).'</td>';
+		print '<td class="right">'.dol_print_size($preview_session->file_size).'</td>';
+		print '<td class="right">'.$preview_session->total_lines.'</td>';
+		print '</tr>';
+		print '</table>';
+
+		print '<br><table class="noborder centpercent">';
+		print '<tr class="liste_titre"><th>'.$langs->trans("CompaniesToCreate").'</th><th>'.$langs->trans("ContactsToCreate").'</th><th>'.$langs->trans("PotentialErrors").'</th></tr>';
+		print '<tr class="oddeven">';
+		print '<td>'.(int) $preview_data['stats']['companies_to_create'].'</td>';
+		print '<td>'.(int) $preview_data['stats']['contacts_to_create'].'</td>';
+		print '<td>'.(int) $preview_data['stats']['potential_errors'].'</td>';
+		print '</tr>';
+		print '</table>';
+
+		if (!empty($preview_data['warnings'])) {
+			print '<div class="warning" style="margin-top: 10px;">';
+			foreach ($preview_data['warnings'] as $warning) {
+				print '- '.dol_escape_htmltag($warning).'<br>';
+			}
+			print '</div>';
+		}
+
+		print '<div class="center" style="margin-top: 15px;">';
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'" style="display:inline;">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="ftp_confirm_import">';
+		print '<input type="hidden" name="session_id" value="'.$preview_session_id.'">';
+		print '<input type="submit" class="butAction" value="'.$langs->trans("ConfirmImportNow").'">';
+		print '</form>';
+		print ' ';
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'" style="display:inline;">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="ftp_preview_cancel">';
+		print '<input type="hidden" name="session_id" value="'.$preview_session_id.'">';
+		print '<input type="submit" class="butActionDelete" value="'.$langs->trans("CancelPreview").'">';
+		print '</form>';
+		print '</div>';
+	}
 }
 
 // Page end

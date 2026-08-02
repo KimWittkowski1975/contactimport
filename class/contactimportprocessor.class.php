@@ -45,6 +45,11 @@ class ContactImportProcessor
 	public $error = '';
 
 	/**
+	 * @var int Id of the existing record matched as a duplicate by the last createCompany()/createContact() call
+	 */
+	private $lastDuplicateId = 0;
+
+	/**
 	 * Constructor
 	 *
 	 * @param DoliDB $db Database handler
@@ -282,15 +287,19 @@ class ContactImportProcessor
 			'success' => false,
 			'companies_created' => 0,
 			'contacts_created' => 0,
-			'duplicates_skipped' => 0,
-			'errors' => 0,
-			'warnings' => 0,
-			'messages' => array(),
+		'companies_updated' => 0,
+		'contacts_updated' => 0,
+		'errors' => 0,
+		'duplicates_skipped' => 0,
+		'success_lines' => 0,  // Count of successfully processed CSV lines (not operations!)
 		);
 
 		$mapping_config = $session->getMappingConfig();
+		dol_syslog("ContactImportProcessor: processImport() session=".$session->id." import_mode=".($mapping_config['import_mode'] ?? 'NOT SET')." create_companies=".(!empty($mapping_config['create_companies']) ? 'true' : 'false')." create_contacts=".(!empty($mapping_config['create_contacts']) ? 'true' : 'false'), LOG_DEBUG);
+
 		if (empty($mapping_config)) {
 			$result['messages'][] = 'No mapping configuration found';
+			dol_syslog("ContactImportProcessor: no mapping configuration found for session=".$session->id, LOG_ERR);
 			return $result;
 		}
 
@@ -309,6 +318,18 @@ class ContactImportProcessor
 		if ($session->has_header) {
 			fgetcsv($handle, 0, $csv_separator, $csv_enclosure);
 		}
+
+		// PERFORMANCE: Disable triggers during batch import
+		// This prevents slow trigger execution (especially multicompany) for each row
+		global $conf;
+		$old_trigger_disabled = isset($conf->global->MAIN_DISABLE_ALL_MAILS) ? $conf->global->MAIN_DISABLE_ALL_MAILS : 0;
+		$conf->global->MAIN_DISABLE_ALL_MAILS = 1; // Disable email triggers
+		
+		// Store and disable trigger files during import to boost performance
+		$backup_triggers_disabled = !empty($conf->global->MAIN_DISABLE_TRIGGERS) ? $conf->global->MAIN_DISABLE_TRIGGERS : '';
+		$conf->global->MAIN_DISABLE_TRIGGERS = '1'; // Disable ALL triggers during import
+		
+		dol_syslog("ContactImportProcessor: Starting batch import with triggers disabled for performance", LOG_INFO);
 
 		$this->db->begin();
 
@@ -339,10 +360,14 @@ class ContactImportProcessor
 				$company_id = $this->createCompany($csv_line, $mapping_config['company'], $user, $mapping_config['contact']);
 				if ($company_id > 0) {
 					$result['companies_created']++;
+					// Log warnings if any (e.g., auto-filled fields)
+					if (!empty($this->errors)) {
+						$this->logError($session->id, $line_count, 'company', implode(', ', $this->errors), 'warning');
+					}
 				} elseif ($company_id === -1) {
-					// Duplicate found - skip this line
-					$result['duplicates_skipped']++;
-					$this->logError($session->id, $line_count, 'company', implode(', ', $this->errors), 'skipped');
+				// Duplicate found - was updated (not skipped)
+				$result['companies_updated']++;
+				$this->logError($session->id, $line_count, 'company', implode(', ', $this->errors), 'updated', $this->lastDuplicateId);
 				} else {
 					$result['errors']++;
 					$line_has_error = true;
@@ -354,13 +379,17 @@ class ContactImportProcessor
 			// Process contact
 			if ($mapping_config['import_mode'] === 'contact_only' || $mapping_config['import_mode'] === 'both') {
 				if ($mapping_config['create_contacts']) {
-				$contact_id = $this->createContact($csv_line, $mapping_config['contact'], $user, $company_id);
+				$contact_id = $this->createContact($csv_line, $mapping_config['contact'], $user, $company_id, $mapping_config['company']);
 				if ($contact_id > 0) {
 					$result['contacts_created']++;
+					// Log warnings if any (e.g., auto-filled fields)
+					if (!empty($this->errors)) {
+						$this->logError($session->id, $line_count, 'contact', implode(', ', $this->errors), 'warning');
+					}
 				} elseif ($contact_id === -1) {
-					// Duplicate found - skip this line
-					$result['duplicates_skipped']++;
-					$this->logError($session->id, $line_count, 'contact', implode(', ', $this->errors), 'skipped');
+				// Duplicate found - was updated (not skipped)
+				$result['contacts_updated']++;
+				$this->logError($session->id, $line_count, 'contact', implode(', ', $this->errors), 'updated', 0, $this->lastDuplicateId);
 				} else {
 					$result['errors']++;
 					$line_has_error = true;
@@ -369,9 +398,15 @@ class ContactImportProcessor
 				}
 			}
 
-			// Log successful import
-			if (($company_id > 0 || $contact_id > 0) && !$line_has_error) {
-				$this->logSuccess($session->id, $line_count, $company_id, $contact_id);
+			// Log successful import and count successful lines
+			// A line is successful if at least one object was created or updated (id != 0)
+			$line_had_success = ($company_id != 0 || $contact_id != 0);
+			
+			if ($line_had_success && !$line_has_error) {
+				if ($company_id > 0 || $contact_id > 0) {
+					$this->logSuccess($session->id, $line_count, $company_id, $contact_id);
+				}
+				$result['success_lines']++;  // Count this CSV line as successfully processed
 			}
 
 			// Clear errors for next iteration
@@ -379,11 +414,21 @@ class ContactImportProcessor
 		}
 
 		fclose($handle);
+		
+		// Re-enable triggers after batch import
+		$conf->global->MAIN_DISABLE_ALL_MAILS = $old_trigger_disabled;
+		$conf->global->MAIN_DISABLE_TRIGGERS = $backup_triggers_disabled;
+		dol_syslog("ContactImportProcessor: Batch import completed, triggers re-enabled", LOG_INFO);
 
 		// Update session statistics
 		$session->processed_lines = $line_count;
-		$session->success_lines = $result['companies_created'] + $result['contacts_created'];
+		$session->success_lines = $result['success_lines'];  // Use the line-based counter, not operation sum
 		$session->error_lines = $result['errors'];
+		$session->duplicates_skipped = $result['duplicates_skipped'];
+		$session->companies_created = $result['companies_created'];
+		$session->companies_updated = $result['companies_updated'];
+		$session->contacts_created = $result['contacts_created'];
+		$session->contacts_updated = $result['contacts_updated'];
 		$session->status = ($result['errors'] > 0) ? 5 : 4; // Error or Completed
 		$session->date_import = dol_now();
 		$session->update($user);
@@ -408,6 +453,9 @@ class ContactImportProcessor
 	{
 		global $conf;
 		$company = new Societe($this->db);
+
+		// Track if we have a last order date for status determination
+		$last_order_date = null;
 
 		// Map CSV data to company fields
 		foreach ($mapping as $csv_column => $field) {
@@ -456,6 +504,13 @@ class ContactImportProcessor
 					case 'tva_intra':
 						$company->tva_intra = $value;
 						break;
+					case 'code_client':
+						$company->code_client = $value;
+						break;
+					case 'options_last_order_date':
+						// Handle extrafield for last order date
+						$last_order_date = $value;
+						break;
 				}
 			}
 		}
@@ -476,34 +531,80 @@ class ContactImportProcessor
 				}
 			}
 			
-			// Generate company name from contact name
-			if (!empty($lastname)) {
-				$company->name = trim($lastname . ($firstname ? ', ' . $firstname : ''));
+			// Generate company name from contact name (improved logic)
+			if (!empty($lastname) || !empty($firstname)) {
+				if (!empty($lastname) && !empty($firstname)) {
+					// Both available: "Lastname, Firstname"
+					$company->name = trim($lastname . ', ' . $firstname);
+					$this->errors[] = 'InfoCompanyNameGenerated';
+				} elseif (!empty($lastname)) {
+					// Only lastname available
+					$company->name = $lastname;
+					$this->errors[] = 'InfoCompanyNameFromLastname';
+				} else {
+					// Only firstname available
+					$company->name = $firstname;
+					$this->errors[] = 'InfoCompanyNameFromFirstname';
+				}
 			}
 		}
 		
-		// Final validation
+		// Final validation - Auto-fill empty required fields
 		if (empty($company->name)) {
-			$this->errors[] = 'Company name is required';
-			return 0;
+			$company->name = 'XX-AUTO';
+			$this->errors[] = 'WarningCompanyNameAutoFilled';
 		}
 
 		// Check for duplicates before creating
 		$duplicate_id = $this->checkCompanyDuplicate($company);
 		if ($duplicate_id > 0) {
-			$this->errors[] = 'Company already exists (ID: '.$duplicate_id.')';
-			return -1; // Return -1 to indicate duplicate found
+			// Duplicate found - update existing company
+			$this->lastDuplicateId = $duplicate_id;
+			$update_result = $this->updateCompany($duplicate_id, $company, $user, $last_order_date);
+			if ($update_result > 0) {
+				$this->errors[] = 'Company already exists - updated (ID: '.$duplicate_id.')';
+				return -1; // Return -1 to indicate duplicate was updated
+			} else {
+				$this->errors[] = 'Company already exists but update failed (ID: '.$duplicate_id.')';
+				return 0;
+			}
 		}
 
-		// Set default values
-		$company->client = 1; // Customer by default
+		// Set default customer status based on last_order_date
+		// If last_order_date is filled → Customer (client=1)
+		// If last_order_date is empty → Prospect (client=2)
+		if (!empty($last_order_date)) {
+			$company->client = 1; // Customer
+		} else {
+			$company->client = 2; // Prospect
+		}
 		$company->status = 1; // Active
+
+		// Generate customer code automatically if required
+		if (getDolGlobalString('SOCIETE_CODECLIENT_ADDON') && empty($company->code_client)) {
+			$company->get_codeclient($company, 0); // 0 = customer type
+		}
 
 		$result = $company->create($user);
 		if ($result > 0) {
+			// Set extrafield if we have a last order date
+			if (!empty($last_order_date)) {
+				$this->setCompanyExtrafield($result, 'last_order_date', $last_order_date);
+			}
 			return $result;
 		} else {
-			$this->errors[] = $company->error;
+			// Collect detailed error information
+			if (!empty($company->error)) {
+				$this->errors[] = 'Company creation failed: '.$company->error;
+			} elseif (!empty($company->errors) && is_array($company->errors)) {
+				$this->errors[] = 'Company creation failed: '.implode(', ', $company->errors);
+			} else {
+				$this->errors[] = 'Company creation failed (unknown error)';
+			}
+			// Add database error if available
+			if (!empty($this->db->lasterror())) {
+				$this->errors[] = 'DB Error: '.$this->db->lasterror();
+			}
 			return 0;
 		}
 	}
@@ -512,12 +613,13 @@ class ContactImportProcessor
 	 * Create a contact from CSV data
 	 *
 	 * @param array $csv_line CSV line data
-	 * @param array $mapping Field mapping
+	 * @param array $mapping Field mapping (contact fields)
 	 * @param User $user User creating the contact
 	 * @param int $company_id Company ID to link contact to
+	 * @param array $company_mapping Company field mapping for fallback
 	 * @return int Contact ID if successful, 0 if error, -1 if duplicate found
 	 */
-	private function createContact($csv_line, $mapping, User $user, $company_id = 0)
+	private function createContact($csv_line, $mapping, User $user, $company_id = 0, $company_mapping = array())
 	{
 		global $conf;
 		$contact = new Contact($this->db);
@@ -573,10 +675,24 @@ class ContactImportProcessor
 			}
 		}
 
-		// Validate required fields
+		// Validate required fields - if no lastname, try to get from company data
+		if (empty($contact->lastname) && !empty($company_mapping)) {
+			// Extract company name from CSV using company mapping
+			foreach ($company_mapping as $csv_column => $field) {
+				$csv_column = (int)$csv_column;
+				$value = isset($csv_line[$csv_column]) ? trim($csv_line[$csv_column]) : '';
+				if ($field === 'nom' && !empty($value)) {
+					$contact->lastname = $value;
+					$this->errors[] = 'InfoContactLastnameFromCompany';
+					break;
+				}
+			}
+		}
+		
+		// Final validation - Auto-fill empty required fields
 		if (empty($contact->lastname)) {
-			$this->errors[] = 'Contact last name is required';
-			return 0;
+			$contact->lastname = 'XX-AUTO';
+			$this->errors[] = 'WarningContactLastnameAutoFilled';
 		}
 
 		// Link to company if provided
@@ -587,8 +703,20 @@ class ContactImportProcessor
 		// Check for duplicates before creating
 		$duplicate_id = $this->checkContactDuplicate($contact);
 		if ($duplicate_id > 0) {
-			$this->errors[] = 'Contact already exists (ID: '.$duplicate_id.')';
-			return -1; // Return -1 to indicate duplicate found
+			// Duplicate found - update existing contact
+			// Link to new company if provided and contact had no company before
+			if ($company_id > 0) {
+				$contact->socid = $company_id;
+			}
+			$this->lastDuplicateId = $duplicate_id;
+			$update_result = $this->updateContact($duplicate_id, $contact, $user);
+			if ($update_result > 0) {
+				$this->errors[] = 'Contact already exists - updated (ID: '.$duplicate_id.')';
+				return -1; // Return -1 to indicate duplicate was updated
+			} else {
+				$this->errors[] = 'Contact already exists but update failed (ID: '.$duplicate_id.')';
+				return 0;
+			}
 		}
 
 		// Set default values
@@ -598,7 +726,18 @@ class ContactImportProcessor
 		if ($result > 0) {
 			return $result;
 		} else {
-			$this->errors[] = $contact->error;
+			// Collect detailed error information
+			if (!empty($contact->error)) {
+				$this->errors[] = 'Contact creation failed: '.$contact->error;
+			} elseif (!empty($contact->errors) && is_array($contact->errors)) {
+				$this->errors[] = 'Contact creation failed: '.implode(', ', $contact->errors);
+			} else {
+				$this->errors[] = 'Contact creation failed (unknown error)';
+			}
+			// Add database error if available
+			if (!empty($this->db->lasterror())) {
+				$this->errors[] = 'DB Error: '.$this->db->lasterror();
+			}
 			return 0;
 		}
 	}
@@ -610,20 +749,24 @@ class ContactImportProcessor
 	 * @param int $line_number Line number
 	 * @param string $import_type Import type (company/contact)
 	 * @param string $error_message Error message
-	 * @param string $status Status (error or skipped for duplicates)
+	 * @param string $status Status (error, warning or updated for duplicates)
+	 * @param int $company_id Existing company id matched/updated, if any
+	 * @param int $contact_id Existing contact id matched/updated, if any
 	 */
-	private function logError($session_id, $line_number, $import_type, $error_message, $status = 'error')
+	private function logError($session_id, $line_number, $import_type, $error_message, $status = 'error', $company_id = 0, $contact_id = 0)
 	{
 		// Use a separate transaction for logging to ensure logs persist even on rollback
 		$this->db->commit(); // Commit any pending changes
 		$this->db->begin();  // Start new transaction for log
-		
+
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."contactimport_logs (";
-		$sql .= "fk_session, line_number, import_type, status, error_message, date_creation";
+		$sql .= "fk_session, line_number, import_type, company_id, contact_id, status, error_message, date_creation";
 		$sql .= ") VALUES (";
 		$sql .= $session_id.", ";
 		$sql .= $line_number.", ";
 		$sql .= "'".$this->db->escape($import_type)."', ";
+		$sql .= ($company_id > 0 ? (int) $company_id : "NULL").", ";
+		$sql .= ($contact_id > 0 ? (int) $contact_id : "NULL").", ";
 		$sql .= "'".$this->db->escape($status)."', ";
 		$sql .= "'".$this->db->escape($error_message)."', ";
 		$sql .= "'".$this->db->idate(dol_now())."'";
@@ -682,9 +825,9 @@ class ContactImportProcessor
 	{
 		global $conf;
 
-		// Check if duplicate check is enabled
-		if (!getDolGlobalString('CONTACTIMPORT_DUPLICATE_CHECK')) {
-			return 0; // Duplicate check disabled, allow all imports
+		// Check if duplicate check is enabled (default: enabled)
+		if (getDolGlobalString('CONTACTIMPORT_DUPLICATE_CHECK') === '0') {
+			return 0; // Duplicate check explicitly disabled, allow all imports
 		}
 
 		// Check by exact name match
@@ -749,9 +892,9 @@ class ContactImportProcessor
 	{
 		global $conf;
 
-		// Check if duplicate check is enabled
-		if (!getDolGlobalString('CONTACTIMPORT_DUPLICATE_CHECK')) {
-			return 0; // Duplicate check disabled, allow all imports
+		// Check if duplicate check is enabled (default: enabled)
+		if (getDolGlobalString('CONTACTIMPORT_DUPLICATE_CHECK') === '0') {
+			return 0; // Duplicate check explicitly disabled, allow all imports
 		}
 
 		// Check by email if provided (most reliable)
@@ -806,5 +949,168 @@ class ContactImportProcessor
 		}
 
 		return 0;
+	}
+
+	/**
+	 * Update existing company - only fill empty fields
+	 * 
+	 * @param int $company_id Company ID
+	 * @param Societe $new_data New data object
+	 * @param User $user User performing update
+	 * @param mixed $last_order_date Last order date value (can be string or null)
+	 * @return int Company ID if successful, 0 otherwise
+	 */
+	private function updateCompany($company_id, $new_data, User $user, $last_order_date = null)
+	{
+		$company = new Societe($this->db);
+		if ($company->fetch($company_id) <= 0) {
+			$this->errors[] = 'Cannot load existing company';
+			return 0;
+		}
+		
+		// Update only empty fields
+		if (empty($company->name_alias) && !empty($new_data->name_alias)) $company->name_alias = $new_data->name_alias;
+		if (empty($company->address) && !empty($new_data->address)) $company->address = $new_data->address;
+		if (empty($company->zip) && !empty($new_data->zip)) $company->zip = $new_data->zip;
+		if (empty($company->town) && !empty($new_data->town)) $company->town = $new_data->town;
+		if (empty($company->phone) && !empty($new_data->phone)) $company->phone = $new_data->phone;
+		if (empty($company->fax) && !empty($new_data->fax)) $company->fax = $new_data->fax;
+		if (empty($company->email) && !empty($new_data->email)) $company->email = $new_data->email;
+		if (empty($company->url) && !empty($new_data->url)) $company->url = $new_data->url;
+		if (empty($company->siren) && !empty($new_data->siren)) $company->siren = $new_data->siren;
+		if (empty($company->siret) && !empty($new_data->siret)) $company->siret = $new_data->siret;
+		if (empty($company->ape) && !empty($new_data->ape)) $company->ape = $new_data->ape;
+		if (empty($company->tva_intra) && !empty($new_data->tva_intra)) $company->tva_intra = $new_data->tva_intra;
+		
+		// Update status based on last_order_date
+		// If last_order_date is filled and company is Prospect → upgrade to Customer
+		if (!empty($last_order_date) && $company->client == 2) {
+			$company->client = 1;
+		}
+		
+		// Generate customer code if missing and required
+		if (getDolGlobalString('SOCIETE_CODECLIENT_ADDON') && empty($company->code_client)) {
+			$company->get_codeclient($company, 0); // 0 = customer type
+		}
+		
+		$result = $company->update($company_id, $user);
+		
+	// Check for errors
+	if ($result <= 0) {
+		if (!empty($company->error)) {
+			$this->errors[] = 'Company update failed: '.$company->error;
+		} elseif (!empty($company->errors) && is_array($company->errors)) {
+			$this->errors[] = 'Company update failed: '.implode(', ', $company->errors);
+		} else {
+			$this->errors[] = 'Company update failed (unknown error)';
+		}
+		if (!empty($this->db->lasterror())) {
+			$this->errors[] = 'DB Error: '.$this->db->lasterror();
+		}
+	}
+	
+	// Update extrafield if we have a last order date
+	if ($result > 0 && !empty($last_order_date)) {
+		$this->setCompanyExtrafield($company_id, 'last_order_date', $last_order_date);
+	}
+	
+	return ($result > 0) ? $company_id : 0;
+}
+
+/**
+ * Update existing contact - only fill empty fields
+ */
+private function updateContact($contact_id, $new_data, User $user)
+{
+$contact = new Contact($this->db);
+if ($contact->fetch($contact_id) <= 0) {
+$this->errors[] = 'Cannot load existing contact';
+return 0;
+}
+if (empty($contact->firstname) && !empty($new_data->firstname)) $contact->firstname = $new_data->firstname;
+if (empty($contact->address) && !empty($new_data->address)) $contact->address = $new_data->address;
+if (empty($contact->zip) && !empty($new_data->zip)) $contact->zip = $new_data->zip;
+if (empty($contact->town) && !empty($new_data->town)) $contact->town = $new_data->town;
+if (empty($contact->phone_pro) && !empty($new_data->phone_pro)) $contact->phone_pro = $new_data->phone_pro;
+if (empty($contact->phone_perso) && !empty($new_data->phone_perso)) $contact->phone_perso = $new_data->phone_perso;
+if (empty($contact->phone_mobile) && !empty($new_data->phone_mobile)) $contact->phone_mobile = $new_data->phone_mobile;
+if (empty($contact->fax) && !empty($new_data->fax)) $contact->fax = $new_data->fax;
+if (empty($contact->email) && !empty($new_data->email)) $contact->email = $new_data->email;
+if (empty($contact->birthday) && !empty($new_data->birthday)) $contact->birthday = $new_data->birthday;
+if (empty($contact->poste) && !empty($new_data->poste)) $contact->poste = $new_data->poste;
+if (empty($contact->socid) && !empty($new_data->socid)) $contact->socid = $new_data->socid;
+$result = $contact->update($contact_id, $user);
+
+// Check for errors
+if ($result <= 0) {
+	if (!empty($contact->error)) {
+		$this->errors[] = 'Contact update failed: '.$contact->error;
+	} elseif (!empty($contact->errors) && is_array($contact->errors)) {
+		$this->errors[] = 'Contact update failed: '.implode(', ', $contact->errors);
+	} else {
+		$this->errors[] = 'Contact update failed (unknown error)';
+	}
+	if (!empty($this->db->lasterror())) {
+		$this->errors[] = 'DB Error: '.$this->db->lasterror();
+	}
+}
+
+return ($result > 0) ? $contact_id : 0;
+}
+
+	/**
+	 * Set extrafield value for a company
+	 *
+	 * @param int $company_id Company ID
+	 * @param string $field_name Extrafield name (without options_ prefix)
+	 * @param mixed $value Value to set
+	 * @return bool True if successful, false otherwise
+	 */
+	private function setCompanyExtrafield($company_id, $field_name, $value)
+	{
+		global $conf;
+		
+		// Validate that extrafield column exists in database
+		$sql_check = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX."societe_extrafields LIKE '".$this->db->escape($field_name)."'";
+		$resql_check = $this->db->query($sql_check);
+		if (!$resql_check || $this->db->num_rows($resql_check) == 0) {
+			$this->errors[] = "Extrafield column '".$field_name."' does not exist in societe_extrafields table! Please run SQL update script: sql/update_1.2.0_to_1.2.1.sql";
+			dol_syslog(get_class($this)."::setCompanyExtrafield ERROR: Extrafield '".$field_name."' missing in database", LOG_ERR);
+			return false;
+		}
+		
+		// Convert date string to timestamp if it's a date field
+		if ($field_name === 'last_order_date' && !empty($value)) {
+			// Try to parse date
+			$timestamp = strtotime($value);
+			if ($timestamp === false) {
+				// Invalid date format
+				return false;
+			}
+			$value = $timestamp;
+		}
+		
+		// Insert or update extrafield
+		$sql = "INSERT INTO ".MAIN_DB_PREFIX."societe_extrafields ";
+		$sql .= "(fk_object, ".$field_name.") ";
+		$sql .= "VALUES (".(int)$company_id.", ";
+		
+		if ($field_name === 'last_order_date') {
+			$sql .= "FROM_UNIXTIME(".(int)$value.")";
+		} else {
+			$sql .= "'".$this->db->escape($value)."'";
+		}
+		
+		$sql .= ") ON DUPLICATE KEY UPDATE ".$field_name." = ";
+		
+		if ($field_name === 'last_order_date') {
+			$sql .= "FROM_UNIXTIME(".(int)$value.")";
+		} else {
+			$sql .= "'".$this->db->escape($value)."'";
+		}
+		
+		$resql = $this->db->query($sql);
+		
+		return ($resql !== false);
 	}
 }

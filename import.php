@@ -143,7 +143,8 @@ if ($resql) {
 			2 => $langs->trans('Mapped'),  
 			3 => $langs->trans('ReadyForImport'),
 			4 => $langs->trans('Completed'),
-			5 => $langs->trans('Error')
+			5 => $langs->trans('Error'),
+			6 => $langs->trans('RolledBack')
 		);
 		
 		$i = 0;

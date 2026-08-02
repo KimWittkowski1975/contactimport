@@ -12,6 +12,26 @@ ModuleContactimportDesc = Modul zum Import von Firmen- und Kontaktdaten aus CSV-
 # Setup
 ContactImportSetup = Kontakt Import Konfiguration
 ContactImportSetupDescription = Konfiguration des Kontakt Import Moduls
+ImportWorkflow = Import-Workflow
+UploadCSVFile = CSV-Datei hochladen
+UploadCSVFileDesc = Laden Sie Ihre CSV-Datei mit Kontaktdaten hoch
+ConfigureMapping = Feldmapping konfigurieren
+ConfigureMappingDesc = Ordnen Sie CSV-Spalten den Dolibarr-Feldern zu (Firmen + Kontakte)
+RunImport = Import ausführen
+RunImportDesc = Starten Sie den Import und überprüfen Sie die Ergebnisse
+StartNewImport = Neuen Import starten
+ManageTemplates = Vorlagen verwalten
+TestFTPImport = Test FTP-Import
+TestImportSuccessful = Test-Import erfolgreich
+FilesDownloaded = %s Datei(en) heruntergeladen
+FilesImported = Datei(en) importiert
+ImportStatistics = Import-Statistiken
+Successfully = Erfolgreich
+ErrorFTPNotEnabled = FTP ist nicht aktiviert. Bitte aktivieren Sie FTP in der FTP-Konfiguration.
+ErrorNoDefaultTemplate = Kein Standard-Template gefunden. Bitte erstellen Sie ein Standard-Template.
+NoFilesFoundOnFTP = Keine Dateien auf dem FTP-Server gefunden.
+NoFilesToImport = Keine Dateien zum Importieren gefunden.
+CreateDefaultTemplateFirst = Bitte erstellen Sie zuerst ein Standard-Template
 
 # Configuration
 CONTACTIMPORT_DEFAULT_CSV_SEPARATOR = Standard CSV-Trennzeichen
@@ -33,6 +53,7 @@ CONTACTIMPORT_LOG_LEVELTooltip = Detailgrad der Import-Protokollierung
 ContactImport = Kontakt Import
 CSVUpload = CSV Upload
 MappingInterface = Mapping Interface
+MappingTemplates = Mapping-Vorlagen
 ImportHistory = Import Verlauf
 
 # Upload
@@ -50,6 +71,15 @@ NoRecentUploads = Keine aktuellen Uploads gefunden
 Semicolon = Semikolon
 Comma = Komma
 Pipe = Pipe
+Tab = Tab
+DoubleQuote = Doppelte Anführungszeichen
+SingleQuote = Einfache Anführungszeichen
+
+# Extrafields
+LastOrderDate = Letzte Bestellung
+LastOrderDateHelp = Datum der letzten Bestellung - ändert automatisch den Kundenstatus (leer = Interessent, gefüllt = Kunde)
+Comma = Komma
+Pipe = Pipe
 Tab = Tabulator
 DoubleQuote = Doppelte Anführungszeichen
 SingleQuote = Einfache Anführungszeichen
@@ -59,6 +89,10 @@ MappingInterface = Mapping Interface
 CSVPreview = CSV-Vorschau
 Column = Spalte
 DolibarrField = Dolibarr-Feld
+DolibarrCompanyField = Dolibarr Firmenfeld
+DolibarrContactField = Dolibarr Kontaktfeld
+SelectCSVColumn = CSV-Spalte auswählen
+SampleData = Beispieldaten
 CSVColumn = CSV-Spalte
 ImportSettings = Import-Einstellungen
 ImportMode = Import-Modus
@@ -81,6 +115,19 @@ Required = Pflichtfeld
 CompanyFieldMapping = Firmen-Feld-Zuordnung
 ContactFieldMapping = Kontakt-Feld-Zuordnung
 SaveMapping = Zuordnung speichern
+AlwaysImportBothCompanyAndContact = Importiert immer beides: Firma und zugehöriger Kontakt
+EachCSVRowCreatesCompanyAndLinkedContact = Jede CSV-Zeile erstellt eine Firma und einen damit verknüpften Kontakt
+Instructions = Anweisungen
+MapCSVColumnsToBothCompanyAndContact = Ordnen Sie jede CSV-Spalte sowohl einem Firmen- als auch einem Kontakt-Feld zu
+SameCSVColumnCanBeMappedToBothTypes = Die gleiche CSV-Spalte kann gleichzeitig für Firma UND Kontakt verwendet werden
+RequiredCompanyName = Mindestens ein Firmenname muss zugeordnet werden
+RequiredContactLastname = Mindestens ein Kontakt-Nachname muss zugeordnet werden
+CompanyMapping = Firmen-Zuordnung
+ContactMapping = Kontakt-Zuordnung
+MapToCompanyField = Zuordnung zu Firmen-Feld
+MapToContactField = Zuordnung zu Kontakt-Feld
+SampleData = Beispieldaten
+CSVColumnName = Name der CSV-Spalte
 
 # Status
 Draft = Entwurf
@@ -89,6 +136,7 @@ Mapped = Zugeordnet
 Processing = Verarbeitung
 Completed = Abgeschlossen
 Error = Fehler
+RolledBack = Rückgängig gemacht
 Unknown = Unbekannt
 
 # Actions
@@ -199,6 +247,9 @@ FTPConnectionSuccessful = FTP-Verbindung erfolgreich
 SFTPConnectionSuccessful = SFTP-Verbindung erfolgreich
 FTPConnectionFailed = FTP-Verbindung fehlgeschlagen
 SFTPConnectionFailed = SFTP-Verbindung fehlgeschlagen
+ShowFilesOnServer = Dateien auf Server anzeigen
+ShowFilesOnServerHelp = Diese Liste zeigt nur die Dateien auf dem FTP/SFTP-Server an. Es wird nichts heruntergeladen oder importiert.
+LatestFile = Neueste Datei
 
 # Pseudo Cron
 CONTACTIMPORT_PSEUDO_CRON = Pseudo-Cron aktivieren (für User ohne Cron-Zugriff)
@@ -206,6 +257,18 @@ CONTACTIMPORT_PSEUDO_CRONTooltip = Wenn aktiviert, wird der Import automatisch b
 DownloadAndImport = Herunterladen und Importieren
 FilesDownloaded = %s Datei(en) heruntergeladen
 FilesImported = %s Datei(en) importiert
+PreviewFtpImport = Vorschau
+FtpImportPreviewIntro = Die folgende Datei wurde nur zur Vorschau heruntergeladen. Es wurden noch KEINE Daten in Dolibarr angelegt oder geändert.
+FTPPreviewSessionLabel = FTP-Vorschau: %s
+FTPPreviewSessionDescription = Automatisch zur Vorschau heruntergeladen, noch nicht importiert
+CompaniesToCreate = Neue Firmen
+ContactsToCreate = Neue Kontakte
+PotentialErrors = Mögliche Fehler
+ConfirmImportNow = Jetzt importieren
+CancelPreview = Abbrechen (nichts importieren)
+PreviewCancelled = Vorschau abgebrochen - es wurden keine Daten importiert.
+ErrorCreatingPreviewSession = Fehler beim Erstellen der Vorschau-Session
+ImportSummaryLine = Import abgeschlossen: %s Firmen neu, %s Firmen aktualisiert, %s Kontakte neu, %s Kontakte aktualisiert, %s Fehler
 NoFilesFound = Keine Dateien gefunden
 FTPConfigurationIncomplete = FTP-Konfiguration unvollständig
 NoDefaultTemplateFound = Keine Standard-Vorlage gefunden
@@ -251,6 +314,42 @@ CompletedImports = Abgeschlossene Imports
 FailedImports = Fehlgeschlagene Imports
 TotalLinesProcessed = Verarbeitete Zeilen gesamt
 SuccessfulLines = Erfolgreiche Zeilen
+TestImportResults = Test-Import-Ergebnisse
+Processed = Verarbeitet
+Success = Erfolgreich
+Errors = Fehler
+Companies = Firmen
+Contacts = Kontakte
+ViewDetails = Details anzeigen
+Summary = Zusammenfassung
+CompaniesCreated = Firmen erstellt
+CompaniesUpdated = Firmen aktualisiert
+ContactsCreated = Kontakte erstellt
+ContactsUpdated = Kontakte aktualisiert
+ErrorsOccurred = Fehler aufgetreten
+Created = Erstellt
+Updated = Aktualisiert
+ViewImportHistory = Import-Verlauf anzeigen
+RecentErrorsAndWarnings = Aktuelle Fehler und Warnungen
+ErrorMessage = Fehlermeldung
+NoErrorMessageRecorded = (Keine Fehlermeldung aufgezeichnet)
+NoErrorsOrWarnings = Keine Fehler oder Warnungen gefunden
+
+# Smart Import Messages (v1.3.10)
+InfoCompanyNameGenerated = Info: Firmenname aus Kontaktname generiert (Nachname, Vorname)
+InfoCompanyNameFromLastname = Info: Firmenname aus Kontakt-Nachname kopiert
+InfoCompanyNameFromFirstname = Info: Firmenname aus Kontakt-Vorname kopiert
+InfoContactLastnameFromCompany = Info: Kontakt-Nachname aus Firmenname kopiert
+WarningCompanyNameAutoFilled = Warnung: Firmenname war leer - automatisch mit "XX-AUTO" gefüllt
+WarningContactLastnameAutoFilled = Warnung: Kontakt-Nachname war leer - automatisch mit "XX-AUTO" gefüllt
+TemplateSetAsDefault = Vorlage als Standard festgelegt - alle anderen Standards wurden zurückgesetzt
+
+MostRecentEntries = aktuellste Einträge
+Type = Typ
+Line = Zeile
+Session = Sitzung
+Company = Firma
+Contact = Kontakt
 SuccessRate = Erfolgsrate
 ImportHistory = Import-Verlauf
 NoImportsFound = Keine Imports gefunden
@@ -316,3 +415,35 @@ DuplicateCheckEnabled = Duplikatsprüfung wurde aktiviert
 DuplicateCheckDisabled = Duplikatsprüfung wurde deaktiviert
 ErrorSavingSetting = Fehler beim Speichern der Einstellung
 ModuleNumber = Modul-Nummer
+
+# Extra Fields for Companies (v1.2.1)
+LastOrderDate = Letzter Auftrag (Datum)
+LastOrderDateHelp = Datum des letzten Auftrags des Kunden. Automatische Status-Änderung: Leer = Interessent (Prospect), Datum vorhanden = Kunde (Customer)
+LastOrderColumn = Spalte "Letzter Auftrag (Datum)"
+LastOrderColumnHelp = CSV-Spalte die das Datum des letzten Auftrags enthält
+# Detailed Statistics (v1.3.12)
+DetailedStatistics = Detaillierte Statistik
+CompaniesCreated = Firmen neu angelegt
+CompaniesUpdated = Firmen aktualisiert
+ContactsCreated = Kontakte neu angelegt
+ContactsUpdated = Kontakte aktualisiert
+DetailedOperationsBreakdown = Detaillierte Aufschlüsselung (Operationen, nicht Zeilen)
+TotalOperations = Gesamt-Operationen
+
+# Rollback
+RollbackImportSession = Import rückgängig machen
+ConfirmRollbackImportSession = Es werden %s neu angelegte Firmen/Kontakte aus diesem Import unwiderruflich gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.
+RollbackUpdatedRecordsWarning = Hinweis: %s bereits vorhandene Firmen/Kontakte, die durch diesen Import nur aktualisiert wurden, bleiben unverändert und können hier nicht automatisch zurückgesetzt werden.
+RollbackResultMessage = Rollback abgeschlossen: %s Firmen und %s Kontakte wurden gelöscht.
+RollbackPartialFailures = %s Datensätze konnten nicht gelöscht werden (z. B. weil bereits weitere Daten wie Aufträge oder Rechnungen damit verknüpft sind).
+RollbackNotPossible = Rollback für diese Session nicht möglich (Session ist nicht abgeschlossen oder wurde bereits zurückgesetzt).
+
+# Detailed per-line log & mapping-issue detection (2026-08-02)
+DetailedLog = Detailprotokoll (Zeile für Zeile)
+FilterByStatus = Nach Status filtern
+Record = Datensatz
+Details = Details
+NoLogEntriesFound = Keine Protokolleinträge gefunden
+SameRecord = x selber Datensatz
+MappingIssueSuspected = Mapping-Problem vermutet
+MappingIssueSuspectedDetail = Auffällig viele Zeilen dieser Session wurden alle demselben bereits bestehenden Datensatz zugeordnet. Das ist normalerweise KEIN echtes Duplikat, sondern ein Zeichen dafür, dass das Feldmapping (z. B. Firmenname/Nachname) nicht korrekt konfiguriert ist und dadurch fast alle Zeilen auf denselben automatisch aufgefüllten Platzhalter-Namen treffen.

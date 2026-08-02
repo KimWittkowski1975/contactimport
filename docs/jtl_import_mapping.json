@@ -1,0 +1,29 @@
+{
+  "_comment": "Field mapping for the 'JTL Import Template' (llx_contactimport_templates.rowid=19). CSV column keys are 0-based indices into the JTL export header row: 0 Kundennummer, 1 Interner Schluessel, 2 Kundengruppe, 3 Vorname, 4 Nachname, 5 Firma, 6 Firmenzusatz, 7 Strasse und Nr., 8 Adresszusatz, 9 PLZ, 10 Ort, 11 Mobil, 12 Telefon, 13 E-Mail-Adresse, 14 Webseite, 15 USt-IdNr., 16 Erstkontakt ueber, 17 Notiz, 18 Kunde seit, 19 Letzter Auftrag (Datum), 20 Name, 21 Wert. Columns 1, 2, 16, 17, 18, 20, 21 have no matching field in ContactImportProcessor and are intentionally left unmapped. This file is a copy of the value that must be stored (JSON-encoded) in llx_contactimport_templates.mapping_config for the mapping to take effect - the module itself does not read mapping files from disk.",
+  "import_mode": "both",
+  "create_companies": true,
+  "create_contacts": true,
+  "company": {
+    "0": "code_client",
+    "5": "nom",
+    "6": "name_alias",
+    "7": "address",
+    "9": "zip",
+    "10": "town",
+    "12": "phone",
+    "13": "email",
+    "14": "url",
+    "15": "tva_intra",
+    "19": "options_last_order_date"
+  },
+  "contact": {
+    "3": "firstname",
+    "4": "lastname",
+    "7": "address",
+    "9": "zip",
+    "10": "town",
+    "11": "phone_mobile",
+    "12": "phone",
+    "13": "email"
+  }
+}

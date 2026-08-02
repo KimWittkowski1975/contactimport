@@ -17,7 +17,7 @@
 -- Table to store import sessions and their configurations
 -- ===================================================================
 
-CREATE TABLE llx_contactimport_sessions (
+CREATE TABLE IF NOT EXISTS llx_contactimport_sessions (
     rowid                   integer AUTO_INCREMENT PRIMARY KEY,
     ref                     varchar(128) NOT NULL,
     label                   varchar(255),
@@ -33,6 +33,11 @@ CREATE TABLE llx_contactimport_sessions (
     processed_lines         integer DEFAULT 0,
     success_lines           integer DEFAULT 0,
     error_lines             integer DEFAULT 0,
+    duplicates_skipped      integer DEFAULT 0,
+    companies_created       integer DEFAULT 0,
+    companies_updated       integer DEFAULT 0,
+    contacts_created        integer DEFAULT 0,
+    contacts_updated        integer DEFAULT 0,
     mapping_config          text,
     status                  integer NOT NULL DEFAULT 0,
     date_creation           datetime NOT NULL,
@@ -53,7 +58,7 @@ CREATE TABLE llx_contactimport_sessions (
 -- Table to store detailed import logs for each processed line
 -- ===================================================================
 
-CREATE TABLE llx_contactimport_logs (
+CREATE TABLE IF NOT EXISTS llx_contactimport_logs (
     rowid                   integer AUTO_INCREMENT PRIMARY KEY,
     fk_session              integer NOT NULL,
     line_number             integer NOT NULL,
@@ -75,7 +80,7 @@ CREATE TABLE llx_contactimport_logs (
 -- Table to store field mapping templates for reuse
 -- ===================================================================
 
-CREATE TABLE llx_contactimport_templates (
+CREATE TABLE IF NOT EXISTS llx_contactimport_templates (
     rowid                   integer AUTO_INCREMENT PRIMARY KEY,
     ref                     varchar(128) NOT NULL,
     label                   varchar(255) NOT NULL,
@@ -102,7 +107,7 @@ CREATE TABLE llx_contactimport_templates (
 -- Table to store FTP configuration for automated downloads
 -- ===================================================================
 
-CREATE TABLE llx_contactimport_ftp_config (
+CREATE TABLE IF NOT EXISTS llx_contactimport_ftp_config (
     rowid                   integer AUTO_INCREMENT PRIMARY KEY,
     ref                     varchar(128) NOT NULL,
     label                   varchar(255) NOT NULL,
@@ -136,7 +141,7 @@ CREATE TABLE llx_contactimport_ftp_config (
 -- Table to log duplicate management actions (delete/merge)
 -- ===================================================================
 
-CREATE TABLE llx_contactimport_duplicate_logs (
+CREATE TABLE IF NOT EXISTS llx_contactimport_duplicate_logs (
     rowid                   integer AUTO_INCREMENT PRIMARY KEY,
     entity                  integer DEFAULT 1 NOT NULL,
     type                    varchar(20) NOT NULL, -- 'company' or 'contact'
@@ -151,3 +156,43 @@ CREATE TABLE llx_contactimport_duplicate_logs (
     INDEX idx_duplicate_logs_date (date_action),
     INDEX idx_duplicate_logs_user (fk_user)
 ) ENGINE=innodb;
+
+-- ===================================================================
+-- Extrafield for "Last Order Date" on ThirdParty (Societe)
+-- Required for automatic Customer/Prospect status assignment
+-- v1.3.9+: Integrated into main installation
+-- ===================================================================
+
+-- Create extrafield definition
+INSERT INTO llx_extrafields (name, label, type, elementtype, pos, enabled, alwayseditable, entity)
+SELECT 'last_order_date', 'Letzter Auftrag (Datum)', 'date', 'societe', 1000, '1', '1', 1
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM llx_extrafields 
+    WHERE name = 'last_order_date' AND elementtype = 'societe'
+);
+
+-- Add column to societe_extrafields table if it doesn't exist
+SET @dbname = DATABASE();
+SET @tablename = 'llx_societe_extrafields';
+SET @columnname = 'last_order_date';
+SET @preparedStatement = (SELECT IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+   WHERE (table_name = @tablename)
+     AND (table_schema = @dbname)
+     AND (column_name = @columnname)
+  ) > 0,
+  'SELECT 1',
+  CONCAT('ALTER TABLE ', @tablename, ' ADD COLUMN ', @columnname, ' DATE NULL;')
+));
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
+
+-- ===================================================================
+-- NOTES:
+-- This extrafield enables automatic status assignment:
+--   - Empty "Last Order Date" → Company Status: Prospect (client=2)
+--   - Filled "Last Order Date" → Company Status: Customer (client=1)
+-- The date value is stored and visible in company forms
+-- ===================================================================

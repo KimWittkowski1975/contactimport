@@ -129,8 +129,6 @@ admin/
 
 #### Zusätzliche Features:
 - **download.php** (118 Zeilen) - Session-Export
-- **import_new.php** (217 Zeilen) - Alternative Import-Ansicht
-- **import_backup.php** (330 Zeilen) - Backup-Version
 
 ### Automatisierung (237 Zeilen)
 

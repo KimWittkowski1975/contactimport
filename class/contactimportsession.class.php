@@ -59,6 +59,7 @@ class ContactImportSession extends CommonObject
 	const STATUS_PROCESSING = 3;
 	const STATUS_COMPLETED = 4;
 	const STATUS_ERROR = 5;
+	const STATUS_ROLLED_BACK = 6;
 
 	/**
 	 * 'type' field format ('integer', 'integer:ObjectClass:PathToClass[:AddCreateButtonOrNot[:Filter]]', 'sellist:TableName:LabelFieldName[:KeyFieldName[:KeyFieldParent[:Filter]]]', 'varchar(x)', 'double(24,8)', 'real', 'price', 'text', 'text:none', 'html', 'date', 'datetime', 'timestamp', 'duration', 'mail', 'phone', 'url', 'password')
@@ -79,6 +80,11 @@ class ContactImportSession extends CommonObject
 		'processed_lines' => array('type'=>'integer', 'label'=>'ProcessedLines', 'enabled'=>'1', 'position'=>120, 'notnull'=>0, 'visible'=>1),
 		'success_lines' => array('type'=>'integer', 'label'=>'SuccessLines', 'enabled'=>'1', 'position'=>130, 'notnull'=>0, 'visible'=>1),
 		'error_lines' => array('type'=>'integer', 'label'=>'ErrorLines', 'enabled'=>'1', 'position'=>140, 'notnull'=>0, 'visible'=>1),
+		'duplicates_skipped' => array('type'=>'integer', 'label'=>'DuplicatesSkipped', 'enabled'=>'1', 'position'=>145, 'notnull'=>0, 'visible'=>1),
+		'companies_created' => array('type'=>'integer', 'label'=>'CompaniesCreated', 'enabled'=>'1', 'position'=>146, 'notnull'=>0, 'visible'=>1),
+		'companies_updated' => array('type'=>'integer', 'label'=>'CompaniesUpdated', 'enabled'=>'1', 'position'=>147, 'notnull'=>0, 'visible'=>1),
+		'contacts_created' => array('type'=>'integer', 'label'=>'ContactsCreated', 'enabled'=>'1', 'position'=>148, 'notnull'=>0, 'visible'=>1),
+		'contacts_updated' => array('type'=>'integer', 'label'=>'ContactsUpdated', 'enabled'=>'1', 'position'=>149, 'notnull'=>0, 'visible'=>1),
 		'mapping_config' => array('type'=>'text', 'label'=>'MappingConfig', 'enabled'=>'1', 'position'=>150, 'notnull'=>0, 'visible'=>0),
 		'status' => array('type'=>'integer', 'label'=>'Status', 'enabled'=>'1', 'position'=>1000, 'notnull'=>1, 'visible'=>1, 'index'=>1),
 		'date_creation' => array('type'=>'datetime', 'label'=>'DateCreation', 'enabled'=>'1', 'position'=>500, 'notnull'=>1, 'visible'=>2),
@@ -104,6 +110,11 @@ class ContactImportSession extends CommonObject
 	public $processed_lines;
 	public $success_lines;
 	public $error_lines;
+	public $duplicates_skipped;
+	public $companies_created;
+	public $companies_updated;
+	public $contacts_created;
+	public $contacts_updated;
 	public $mapping_config;
 	public $status;
 	public $date_creation;
@@ -391,6 +402,12 @@ class ContactImportSession extends CommonObject
 		$sql .= " processed_lines = ".(isset($this->processed_lines) ? $this->processed_lines : "null").",";
 		$sql .= " success_lines = ".(isset($this->success_lines) ? $this->success_lines : "null").",";
 		$sql .= " error_lines = ".(isset($this->error_lines) ? $this->error_lines : "null").",";
+		$sql .= " duplicates_skipped = ".(isset($this->duplicates_skipped) ? (int) $this->duplicates_skipped : "null").",";
+		$sql .= " companies_created = ".(isset($this->companies_created) ? (int) $this->companies_created : "null").",";
+		$sql .= " companies_updated = ".(isset($this->companies_updated) ? (int) $this->companies_updated : "null").",";
+		$sql .= " contacts_created = ".(isset($this->contacts_created) ? (int) $this->contacts_created : "null").",";
+		$sql .= " contacts_updated = ".(isset($this->contacts_updated) ? (int) $this->contacts_updated : "null").",";
+		$sql .= " date_import = ".(!empty($this->date_import) ? "'".$this->db->idate($this->date_import)."'" : "null").",";
 		$sql .= " mapping_config = ".(isset($this->mapping_config) ? "'".$this->db->escape($this->mapping_config)."'" : "null").",";
 		$sql .= " status = ".(isset($this->status) ? $this->status : "null").",";
 		$sql .= " date_modification = '".$this->db->idate(dol_now())."',";
@@ -471,6 +488,7 @@ class ContactImportSession extends CommonObject
 			self::STATUS_PROCESSING => $langs->trans("Processing"),
 			self::STATUS_COMPLETED => $langs->trans("Completed"),
 			self::STATUS_ERROR => $langs->trans("Error"),
+			self::STATUS_ROLLED_BACK => $langs->trans("RolledBack"),
 		);
 		
 		return isset($statuses[$this->status]) ? $statuses[$this->status] : $langs->trans("Unknown");
