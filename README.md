@@ -228,8 +228,7 @@ FTP-Integration, Import-Templates und zeitgesteuerte Imports per (Pseudo-)Cron s
 
 Bei Fragen oder Problemen wenden Sie sich an:
 - **Entwickler**: Kim Wittkowski
-- **E-Mail**: kim@nexor.de
-- **Website**: https://www.nexor.de
+
 
 ## Lizenz
 
